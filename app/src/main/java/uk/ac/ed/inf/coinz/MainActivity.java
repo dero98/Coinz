@@ -1,155 +1,106 @@
 package uk.ac.ed.inf.coinz;
 
-import android.location.Location;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.design.widget.NavigationView;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.MenuItem;
+import android.widget.Toast;
 
-import com.mapbox.android.core.location.LocationEngine;
-import com.mapbox.android.core.location.LocationEngineListener;
-import com.mapbox.android.core.location.LocationEnginePriority;
-import com.mapbox.android.core.location.LocationEngineProvider;
-import com.mapbox.android.core.permissions.PermissionsListener;
-import com.mapbox.android.core.permissions.PermissionsManager;
-import com.mapbox.mapboxsdk.Mapbox;
-import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
-import com.mapbox.mapboxsdk.geometry.LatLng;
-import com.mapbox.mapboxsdk.maps.MapView;
-import com.mapbox.mapboxsdk.maps.MapboxMap;
-import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
-import com.mapbox.mapboxsdk.plugins.locationlayer.LocationLayerPlugin;
-import com.mapbox.mapboxsdk.plugins.locationlayer.modes.CameraMode;
-import com.mapbox.mapboxsdk.plugins.locationlayer.modes.RenderMode;
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener{
 
-import java.util.List;
-
-public class MainActivity extends AppCompatActivity implements
-        OnMapReadyCallback, LocationEngineListener,
-        PermissionsListener {
+    private DrawerLayout drawer;
     private final String tag = "MainActivity";
-    private MapView mapView;
-    private MapboxMap map;
-    private PermissionsManager permissionsManager;
-    private LocationEngine locationEngine;
-    private LocationLayerPlugin locationLayerPlugin;
-    private Location originLocation;
+    private String downloadDate = "2018/11/30"; // Format: YYYY/MM/DD
+    private final String preferencesFile = "MyPrefsFile"; // for storing preferences
+    protected static MapFragment mapfrag= new MapFragment();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        // Toolbar toolbar = findViewById(R.id.);
-        // setSupportActionBar(toolbar);
-        Mapbox.getInstance(this, getString(R.string.access_token));
-        mapView = findViewById(R.id.mapboxMapView);
-        mapView.onCreate(savedInstanceState);
-        mapView.getMapAsync(this);
+        setContentView(R.layout.activity_navigation);
+        Toolbar toolbar=findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        drawer=findViewById(R.id.drawer_layout);
+        NavigationView navigationView= findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+        ActionBarDrawerToggle toggle= new ActionBarDrawerToggle(this,drawer,toolbar,
+                R.string.navigation_drawer_open,R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
+        toggle.syncState();
+        if(savedInstanceState==null){
+            getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
+                    new MapFragment()).commit();
+        navigationView.setCheckedItem(R.id.nav_map);
+    }
     }
 
     @Override
-    public void onMapReady(MapboxMap mapboxMap) {
-        if (mapboxMap == null) {
-            Log.d(tag, "[onMapReady] mapBox is null");
-        } else {
-            map = mapboxMap;
-// Set user interface options
-            map.getUiSettings().setCompassEnabled(true);
-            map.getUiSettings().setZoomControlsEnabled(true);
-// Make location information available
-            enableLocation();
+    public void onBackPressed() {
+        if(drawer.isDrawerOpen(GravityCompat.START)){
+            drawer.closeDrawer(GravityCompat.START);
+        }else{
+            super.onBackPressed();
         }
-    }
-
-    private void enableLocation() {
-        if (PermissionsManager.areLocationPermissionsGranted(this)) {
-            Log.d(tag, "Permissions are granted");
-            initializeLocationEngine();
-            initializeLocationLayer();
-        } else {
-            Log.d(tag, "Permissions are not granted");
-            permissionsManager = new PermissionsManager(this);
-            permissionsManager.requestLocationPermissions(this);
-        }
-    }
-
-    @SuppressWarnings("MissingPermission")
-    private void initializeLocationEngine() {
-        locationEngine = new LocationEngineProvider(this)
-                .obtainBestLocationEngineAvailable();
-        locationEngine.setInterval(5000); // preferably every 5 seconds
-        locationEngine.setFastestInterval(1000); // at most every second
-        locationEngine.setPriority(LocationEnginePriority.HIGH_ACCURACY);
-        locationEngine.activate();
-        Location lastLocation = locationEngine.getLastLocation();
-        if (lastLocation != null) {
-            originLocation = lastLocation;
-            setCameraPosition(lastLocation);
-        } else {
-            locationEngine.addLocationEngineListener(this);
-        }
-    }
-
-    @SuppressWarnings("MissingPermission")
-    private void initializeLocationLayer() {
-        if (mapView == null) {
-            Log.d(tag, "mapView is null");
-        } else {
-            if (map == null) {
-                Log.d(tag, "map is null");
-            } else {
-                locationLayerPlugin = new LocationLayerPlugin(mapView,
-                        map, locationEngine);
-                locationLayerPlugin.setLocationLayerEnabled(true);
-                locationLayerPlugin.setCameraMode(CameraMode.TRACKING);
-                locationLayerPlugin.setRenderMode(RenderMode.NORMAL);
-            }
-        }
-    }
-
-    private void setCameraPosition(Location location) {
-        LatLng latLng = new LatLng(location.getLatitude(),
-                location.getLongitude());
-        map.animateCamera(CameraUpdateFactory.newLatLng(latLng));
+        super.onBackPressed();
     }
 
     @Override
-    public void onLocationChanged(Location location) {
-        if (location == null) {
-            Log.d(tag, "[onLocationChanged] location is null");
-        } else {
-            Log.d(tag, "[onLocationChanged] location is not null");
-            originLocation = location;
-            setCameraPosition(location);
+    public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+        switch(menuItem.getItemId()){
+            case R.id.nav_bank:
+                getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
+                        new BankFragment()).commit();
+                break;
+            case R.id.nav_settings:
+                getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
+                        new SettingsFragment()).commit();
+                break;
+
+            case R.id.nav_map:
+
+                getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
+                       mapfrag).commit();
+                break;
+
+            case R.id.nav_share:
+                Toast.makeText(this,"share",Toast.LENGTH_LONG).show();
+                break;
+
         }
-    }
-
-    @Override
-    @SuppressWarnings("MissingPermission")
-    public void onConnected() {
-        Log.d(tag, "[onConnected] requesting location updates");
-        locationEngine.requestLocationUpdates();
-    }
-
-    @Override
-    public void onExplanationNeeded(List<String> permissionsToExplain){
-        Log.d(tag, "Permissions: " + permissionsToExplain.toString());
-// Present toast or dialog.
-    }
-
-    @Override
-    public void onPermissionResult(boolean granted) {
-        Log.d(tag, "[onPermissionResult] granted == " + granted);
-        if (granted) {
-            enableLocation();
-        } else {
-// Open a dialogue with the user
-        }
+        drawer.closeDrawer(GravityCompat.START);
+        return true;
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        mapView.onStart();
+// Restore preferences
+        SharedPreferences settings = getSharedPreferences(preferencesFile, Context.MODE_PRIVATE);
+// use ”” as the default value (this might be the first time the app is run)
+        downloadDate = settings.getString("lastDownloadDate", "");
+        Log.d(tag, "[onStart] Recalled lastDownloadDate is ’" + downloadDate + "’");
     }
-
+    @Override
+    public void onStop() {
+        super.onStop();
+        Log.d(tag, "[onStop] Storing lastDownloadDate of " + downloadDate);
+// All objects are from android.context.Context
+        SharedPreferences settings = getSharedPreferences(preferencesFile,
+                Context.MODE_PRIVATE);
+// We need an Editor object to make preference changes.
+        SharedPreferences.Editor editor = settings.edit();
+        editor.putString("lastDownloadDate", downloadDate);
+// Apply the edits!
+        editor.apply();
+    }
 }
