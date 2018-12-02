@@ -19,6 +19,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEngineListener;
@@ -32,6 +33,7 @@ import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.annotations.Icon;
 import com.mapbox.mapboxsdk.annotations.IconFactory;
+import com.mapbox.mapboxsdk.annotations.Marker;
 import com.mapbox.mapboxsdk.annotations.MarkerOptions;
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
 import com.mapbox.mapboxsdk.geometry.LatLng;
@@ -66,6 +68,8 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     private LocationEngine locationEngine;
     private LocationLayerPlugin locationLayerPlugin;
     private Location originLocation;
+    private View view;
+    private Button buttonCollect;
 
 
 
@@ -81,8 +85,10 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         //  setContentView(R.layout.activity_main);
         // Toolbar toolbar = findViewById(R.id.);
         // setSupportActionBar(toolbar);
+        this.view=view;
         Mapbox.getInstance(getActivity(), getString(R.string.access_token));
         mapView = (MapView) view.findViewById(R.id.mapboxMapView);
+        buttonCollect=view.findViewById(R.id.buttonCollect);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
    }
@@ -111,8 +117,34 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
             dowJ.execute("http://homepages.inf.ed.ac.uk/stg/coinz/"+localdate()+"/coinzmap.geojson");
 
         }
+        map.setOnMarkerClickListener(new MapboxMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(@NonNull Marker marker) {
+                LatLng originLatLng = new LatLng(originLocation.getLatitude(), originLocation.getLongitude());
+                double distance=marker.getPosition().distanceTo(originLatLng);
+                if(distance<=150){
+                    buttonCollect.setVisibility(View.VISIBLE);
+                    buttonCollect.setOnClickListener(
+                            new View.OnClickListener() {
 
-
+                                public void onClick(View view) {
+                                    marker.remove();
+                                    buttonCollect.setVisibility(View.GONE);
+                                }
+                            } );
+                    return false;
+                }else{
+                    buttonCollect.setVisibility(View.GONE);
+                    return false;
+                }
+            }
+        });
+        map.addOnMapClickListener(new MapboxMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(@NonNull LatLng point) {
+                buttonCollect.setVisibility(View.GONE);
+            }
+        });
         }
 
     @Override
@@ -152,8 +184,9 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
           Icon i = drawableToIcon(getContext(), R.drawable.ic_place , Color.parseColor(marker_colorHex));
            String market_symbol=feature.properties().get("marker-symbol").getAsString();
 
-           map.addMarker(new MarkerOptions().title(currency+":" +value)
+           Marker mp=map.addMarker(new MarkerOptions().title(currency+":" +value)
                    .snippet(market_symbol).icon(i).position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
+
 
        }
        }
@@ -217,7 +250,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     private void setCameraPosition(Location location) {
         LatLng latLng = new LatLng(location.getLatitude(),
                 location.getLongitude());
-        map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 13.0));
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15.0));
     }
 
     @Override
@@ -229,6 +262,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
             originLocation = location;
             setCameraPosition(location);
         }
+
     }
 
     @Override
@@ -311,6 +345,8 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         editor.putString("lastDownloadDate", downloadDate);
 // Apply the edits!
         editor.apply();
+
+
     }
 
     @Override
@@ -364,12 +400,12 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     String contents = new String(bytes);
         return contents;
 }
-
 public String localdate(){
     DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     LocalDate localDate = LocalDate.now();
     return dtf.format(localDate);
     }
+
 }
 
 

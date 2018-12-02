@@ -1,89 +1,111 @@
 package uk.ac.ed.inf.coinz;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Patterns;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 
 public class LoginActivity extends AppCompatActivity implements View.OnClickListener {
-    private FirebaseAuth mAuth;
 
-    EditText editTextEmail, editTexPassword;
+    private FirebaseAuth mAuth;
+    private EditText editTextEmail, editTextPassword;
+    private ProgressBar progressBar;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-        editTextEmail=(EditText)  findViewById(R.id.EditTextEmail);
-        editTexPassword=(EditText) findViewById(R.id.EditTextPassword);
+
         mAuth = FirebaseAuth.getInstance();
-       findViewById(R.id.ButtonSignUp).setOnClickListener(this);
+
+        editTextEmail = (EditText) findViewById(R.id.editTextEmail);
+        editTextPassword = (EditText) findViewById(R.id.editTextPassword);
+        progressBar = (ProgressBar) findViewById(R.id.progressbar);
+
+        findViewById(R.id.textViewSignup).setOnClickListener(this);
+        findViewById(R.id.buttonLogin).setOnClickListener(this);
+        if (!isTaskRoot()
+                && getIntent().hasCategory(Intent.CATEGORY_LAUNCHER)
+                && getIntent().getAction() != null
+                && getIntent().getAction().equals(Intent.ACTION_MAIN)) {
+
+            finish();
+            return;
+        }
 
     }
 
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        // Check if user is signed in (non-null) and update UI accordingly.
-        FirebaseUser currentUser = mAuth.getCurrentUser();
-    //    updateUI(currentUser);
-    }
-
-
-    @Override
-    public void onClick(View veiw) {
-        switch(veiw.getId()){
-            case R.id.ButtonSignUp:
-                registerUser();
-                break;
-        } }
-
-    private void registerUser() {
+    private void userLogin() {
         String email = editTextEmail.getText().toString().trim();
-        String password = editTexPassword.getText().toString().trim();
+        String password = editTextPassword.getText().toString().trim();
+
         if (email.isEmpty()) {
             editTextEmail.setError("Email is required");
             editTextEmail.requestFocus();
             return;
         }
+
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             editTextEmail.setError("Please enter a valid email");
-            editTexPassword.requestFocus();
+            editTextEmail.requestFocus();
             return;
-        }
-        if (password.length() < 6) {
-            editTexPassword.setError("Minimum length of password should be 6");
-            editTexPassword.requestFocus();
-            return;
-
         }
 
         if (password.isEmpty()) {
-            editTexPassword.setError("Password is required");
-            editTexPassword.requestFocus();
+            editTextPassword.setError("Password is required");
+            editTextPassword.requestFocus();
             return;
         }
 
-        mAuth.createUserWithEmailAndPassword(email, password).addOnCompleteListener(
-                new OnCompleteListener<AuthResult>() {
-                    @Override
-                    public void onComplete(@NonNull Task<AuthResult> task) {
-                    if(task.isSuccessful()){
-                        Toast.makeText(getApplicationContext(),"User Registered Successfull",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                    }
+        if (password.length() < 6) {
+            editTextPassword.setError("Minimum lenght of password should be 6");
+            editTextPassword.requestFocus();
+            return;
+        }
 
-                });
+        progressBar.setVisibility(View.VISIBLE);
 
+        mAuth.signInWithEmailAndPassword(email, password).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                progressBar.setVisibility(View.GONE);
+                if (task.isSuccessful()) {
+                    finish();
+                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(getApplicationContext(), task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+
+
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()) {
+            case R.id.textViewSignup:
+                finish();
+                startActivity(new Intent(this, SignUpActivity.class));
+                break;
+
+            case R.id.buttonLogin:
+                userLogin();
+                break;
+        }
     }
 }
+
