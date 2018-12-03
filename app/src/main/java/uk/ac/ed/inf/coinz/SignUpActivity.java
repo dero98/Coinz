@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.util.Patterns;
 import android.view.View;
 import android.widget.EditText;
@@ -11,17 +12,27 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class SignUpActivity extends AppCompatActivity  implements View.OnClickListener{
 
     private FirebaseAuth mAuth;
+    private FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private String TAG="SignUpActivity";
+
     ProgressBar progressBar;
-    EditText editTextEmail, editTexPassword;
+    EditText editTextEmail, editTexPassword,editTextName, editTextSurname;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -29,6 +40,8 @@ public class SignUpActivity extends AppCompatActivity  implements View.OnClickLi
 
         editTextEmail = (EditText) findViewById(R.id.editTextEmail);
         editTexPassword = (EditText) findViewById(R.id.editTextPassword);
+        editTextName=(EditText)findViewById(R.id.editTextName);
+        editTextSurname=(EditText)findViewById(R.id.editTextSurname);
         progressBar = (ProgressBar) findViewById(R.id.progressbar);
 
 
@@ -65,9 +78,21 @@ public class SignUpActivity extends AppCompatActivity  implements View.OnClickLi
     private void registerUser() {
         String email = editTextEmail.getText().toString().trim();
         String password = editTexPassword.getText().toString().trim();
+        String name=editTextName.getText().toString().trim();
+        String surname=editTextSurname.getText().toString().trim();
         if (email.isEmpty()) {
             editTextEmail.setError("Email is required");
             editTextEmail.requestFocus();
+            return;
+        }
+        if(name.isEmpty()){
+            editTextName.setError("Name is required");
+            editTextName.requestFocus();
+            return;
+        }
+        if(surname.isEmpty()){
+            editTextSurname.setError("Surname is require");
+            editTextSurname.requestFocus();
             return;
         }
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
@@ -93,18 +118,20 @@ public class SignUpActivity extends AppCompatActivity  implements View.OnClickLi
                 new OnCompleteListener<AuthResult>() {
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
-                        if(task.isSuccessful()){
+                        if(task.isSuccessful() ){
                         //    Toast.makeText(getApplicationContext(),"User Registered Successfull",
                           //          Toast.LENGTH_SHORT).show();
-                            finish();
-                            startActivity(new Intent(SignUpActivity.this, MainActivity.class));
+                            addToFirebase(email,name,surname);
+
                         }else {
 
                             if (task.getException() instanceof FirebaseAuthUserCollisionException) {
-                                Toast.makeText(getApplicationContext(), "You are already registered", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplicationContext(),
+                                        "You are already registered", Toast.LENGTH_SHORT).show();
 
                             } else {
-                                Toast.makeText(getApplicationContext(), task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplicationContext(),
+                                        task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                             }
 
                         }
@@ -113,4 +140,33 @@ public class SignUpActivity extends AppCompatActivity  implements View.OnClickLi
                 });
 
     }
+
+    private void addToFirebase(String email,String name, String surname){
+        Map<String, Object> user = new HashMap<>();
+        user.put("name",name);
+        user.put("surname",surname);
+
+        db.collection("user:"+email).document("User profile")
+                .set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
+            @Override
+            public void onSuccess(Void avoid) {
+                finish();
+                Intent intent = new Intent
+                        (SignUpActivity.this, MainActivity.class);
+                new CurrentUser().setEmail(email);
+                Log.d(TAG,"Sign up was successful");
+                startActivity(intent);
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Toast.makeText(getApplicationContext(),
+                        e.getMessage(), Toast.LENGTH_SHORT).show();
+                Log.d(TAG, "Error adding document", e);
+            }
+        });
+
+    }
+
+
 }

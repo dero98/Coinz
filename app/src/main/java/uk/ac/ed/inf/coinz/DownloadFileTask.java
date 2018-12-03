@@ -3,6 +3,14 @@ package uk.ac.ed.inf.coinz;
 
 import android.os.AsyncTask;
 import android.support.annotation.NonNull;
+import android.util.Log;
+
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.Point;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -12,14 +20,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 public class DownloadFileTask extends AsyncTask<String, Void, String> {
+
     public DownloadResponse listener =null;
     private MapFragment activity;
+    private String tag="Download";
+    private final String email=new CurrentUser().getEmail();
+    private FirebaseFirestore db = FirebaseFirestore.getInstance();
 
     public DownloadFileTask(MapFragment activity) {
         this.activity =  activity;
-
     }
 
     @Override
@@ -65,8 +78,9 @@ public class DownloadFileTask extends AsyncTask<String, Void, String> {
 
     @Override
     protected void onPostExecute(String result) {
+
         super.onPostExecute(result);
-        DownloadCompleteRunner.downloadComplete(result);
+        saveToFirestore(result);
         listener.processResult(result);
         File file = new File(activity.getActivity().getFilesDir(), "coinzmap_geojson.txt");
         FileOutputStream outputStream = null;
@@ -79,5 +93,48 @@ public class DownloadFileTask extends AsyncTask<String, Void, String> {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+    }
+
+    private void saveToFirestore(String result) {
+
+        FeatureCollection featuresColl= (FeatureCollection.fromJson(result)) ;
+        Map<String, Object> user = new HashMap<>();
+        for(Feature feature : featuresColl.features()) {
+            String id=feature.properties().get("id").getAsString();
+            user.put("id",id);
+            String value = feature.properties().get("value").getAsString();
+            user.put("value",value);
+            String currency = feature.properties().get("currency").getAsString();
+            user.put("currency",currency);
+            String marker_color = feature.properties().get("marker-color").getAsString();
+            user.put("marker-color",marker_color);
+            String marker_symbol = feature.properties().get("marker-symbol").getAsString();
+            user.put("marker-symbol",marker_symbol);
+            Point p = (Point) feature.geometry();
+            double lat=p.coordinates().get(1);
+            double lng=p.coordinates().get(0);
+            user.put("lat",lat);
+            user.put("lng",lng);
+
+            db.collection("user:"+email).document("Coinz").
+                    collection("NotCollected").document(id)
+                    .set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
+                @Override
+                public void onSuccess(Void avoid) {
+
+                    Log.d(tag,"Sign up was successful");
+                }
+            }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Log.d(tag, "Error adding document", e);
+                }
+            });
+        }
+
+
+
+
     }
 }

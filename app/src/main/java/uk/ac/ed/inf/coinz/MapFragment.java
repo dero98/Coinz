@@ -21,15 +21,17 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEngineListener;
 import com.mapbox.android.core.location.LocationEnginePriority;
 import com.mapbox.android.core.location.LocationEngineProvider;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
-import com.mapbox.geojson.Feature;
-import com.mapbox.geojson.FeatureCollection;
-import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.annotations.Icon;
 import com.mapbox.mapboxsdk.annotations.IconFactory;
@@ -52,7 +54,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class MapFragment extends Fragment  implements OnMapReadyCallback, LocationEngineListener,
@@ -70,6 +74,14 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     private Location originLocation;
     private View view;
     private Button buttonCollect;
+    private final String email=new CurrentUser().getEmail();
+    private FirebaseFirestore db = FirebaseFirestore.getInstance();
+    Context mContext;
+
+
+    private HashMap<Long,String> markersIDs=new HashMap<>();
+    boolean exist;
+
 
 
 
@@ -82,9 +94,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     @Override
     public void onViewCreated(View view,Bundle savedInstanceState){
         super.onViewCreated(view, savedInstanceState);
-        //  setContentView(R.layout.activity_main);
-        // Toolbar toolbar = findViewById(R.id.);
-        // setSupportActionBar(toolbar);
+
         this.view=view;
         Mapbox.getInstance(getActivity(), getString(R.string.access_token));
         mapView = (MapView) view.findViewById(R.id.mapboxMapView);
@@ -126,10 +136,31 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
                     buttonCollect.setVisibility(View.VISIBLE);
                     buttonCollect.setOnClickListener(
                             new View.OnClickListener() {
-
                                 public void onClick(View view) {
                                     marker.remove();
                                     buttonCollect.setVisibility(View.GONE);
+                                   Map<String, Object> user = new HashMap<>();
+                                   String IDofMarker=markersIDs.get(marker.getId());
+                                    db.collection("user:"+email)
+                                    .document("Coinz")
+                                    .collection("NotCollected")
+                                    .document(IDofMarker).delete();
+                                    user.put("id",IDofMarker);
+                                    db.collection("user"+email)
+                                           .document("Coinz")
+                                           .collection("Collected")
+                                           .document(IDofMarker).set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
+                                      @Override
+                                      public void onSuccess(Void avoid) {
+
+                                          Log.d(tag,"Sign up was successful");
+                                      }
+                                  }).addOnFailureListener(new OnFailureListener() {
+                                      @Override
+                                      public void onFailure(@NonNull Exception e) {
+                                          Log.d(tag, "Error adding document", e);
+                                      }
+                                  });
                                 }
                             } );
                     return false;
@@ -149,47 +180,120 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
 
     @Override
     public void processResult(String result) {
-       FeatureCollection featuresColl= (FeatureCollection.fromJson(result)) ;
-       if(downloadDate.equals(localdate())==false){
-       try{
-        JSONObject json = new JSONObject(result);
-        String shil=json.getJSONObject("rates").getString("SHIL");
-        String dolr=json.getJSONObject("rates").getString("DOLR");
-        String quid=json.getJSONObject("rates").getString("QUID");
-        String peny=json.getJSONObject("rates").getString("PENY");
-        downloadDate=localdate();
-           SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
-                   Context.MODE_PRIVATE);
-           SharedPreferences.Editor editor = settings.edit();
-           editor.putString("lastDownloadDate", downloadDate);
-           editor.putString("SHIL",shil);
-           editor.putString("DOLR",dolr);
-           editor.putString("QUID",quid);
-           editor.putString("PENY",peny);
+
+        if (!downloadDate.equals(localdate())) {
+            try {
+                JSONObject json = new JSONObject(result);
+                String shil = json.getJSONObject("rates").getString("DOLR");
+                String dolr = json.getJSONObject("rates").getString("DOLR");
+                String quid = json.getJSONObject("rates").getString("QUID");
+                String peny = json.getJSONObject("rates").getString("PENY");
+                downloadDate = localdate();
+                SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
+                        Context.MODE_PRIVATE);
+                SharedPreferences.Editor editor = settings.edit();
+                editor.putString("lastDownloadDate", downloadDate);
+                editor.putString("SHIL", shil);
+                editor.putString("DOLR", dolr);
+                editor.putString("QUID", quid);
+                editor.putString("PENY", peny);
 // Apply the edits!
-           editor.apply();
+                editor.apply();
 //
-       }catch (Exception e){
-           e.printStackTrace();
-       }
-       }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        db.collection("user:" + email).document("Coinz").
+                collection("NotCollected").get()
+                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                    @Override
+                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+
+                        if (!queryDocumentSnapshots.isEmpty()) {
+
+                            List<DocumentSnapshot> list = queryDocumentSnapshots.getDocuments();
+
+                            for (DocumentSnapshot d : list) {
+                                String id = d.get("id").toString();
+                                String value = d.get("value").toString();
+                                String currency = d.get("currency").toString();
+                                String marker_color = d.get("marker-color").toString();
+                                String market_symbol = d.get("marker-symbol").toString();
+                                double lat = Double.parseDouble(d.get("lat").toString());
+                                double lng = Double.parseDouble(d.get("lng").toString());
+                                Icon i = drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_color));
+                                Marker mp = map.addMarker(new MarkerOptions().title(currency + ":" + value)
+                                        .snippet(market_symbol).icon(i)
+                                        .position(new LatLng(lat, lng)));
+                                markersIDs.put(mp.getId(), id);
 
 
-       for(Feature feature : featuresColl.features()){
-           Point p = (Point) feature.geometry();
-           String value=feature.properties().get("value").getAsString();
-           String currency=feature.properties().get("currency").getAsString();
-           String marker_colorHex=feature.properties().get("marker-color").getAsString();
-           int marker_colorDec=Integer.parseInt(marker_colorHex.substring(1), 16);
-          Icon i = drawableToIcon(getContext(), R.drawable.ic_place , Color.parseColor(marker_colorHex));
-           String market_symbol=feature.properties().get("marker-symbol").getAsString();
-
-           Marker mp=map.addMarker(new MarkerOptions().title(currency+":" +value)
-                   .snippet(market_symbol).icon(i).position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
+                            }
+                            getActivity().finish();
+                        }
 
 
-       }
-       }
+                    }
+                });
+
+    }
+
+//        for(Feature feature : featuresColl.features()){
+//
+//            Point p = (Point) feature.geometry();
+//            String id=feature.properties().get("id").getAsString();
+//            db.collection("user:"+email).document("Coinz").
+//                    collection("NotCollected").whereEqualTo("id",id).get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+//                @Override
+//                public void onComplete(@NonNull Task<QuerySnapshot> task) {
+//                    if (task.isSuccessful()) {
+//
+//                        String value = feature.properties().get("value").getAsString();
+//                        String currency = feature.properties().get("currency").getAsString();
+//                        String marker_colorHex = feature.properties().get("marker-color").getAsString();
+//                        int marker_colorDec = Integer.parseInt(marker_colorHex.substring(1), 16);
+//                        Icon i = drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_colorHex));
+//                        String market_symbol = feature.properties().get("marker-symbol").getAsString();
+//                        Marker mp = map.addMarker(new MarkerOptions().title(currency + ":" + value)
+//                                .snippet(market_symbol).icon(i)
+//                                .position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
+//
+//
+//                        markersIDs.put(mp.getId(), id);
+//                        for (DocumentSnapshot document : task.getResult()) {
+//                            Log.d(tag, document.getId() + " => " + document.getData());
+//                        }
+//                    } else {
+//                        Log.w(tag, "Error getting documents.", task.getException());
+//                    }
+//                }
+//            });
+
+
+
+
+
+
+                    //getResult().exists();
+           // DocumentSnapshot dc;
+          //   docRef.get().continueWithTask(new Continuation<DocumentSnapshot, Task<DocumentSnapshot>>() {
+          //      @Override
+           //     public Task<DocumentSnapshot> then(@NonNull Task<DocumentSnapshot> task) throws Exception {
+           //         return task ;
+           //     }
+          //  });
+
+
+
+
+
+
+
+
+
+
     public  static Icon drawableToIcon(@NonNull Context context, @DrawableRes int id, @ColorInt int colorRes) {
         Drawable vectorDrawable = ResourcesCompat.getDrawable(context.getResources(), id, context.getTheme());
         Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(),
@@ -405,7 +509,17 @@ public String localdate(){
     LocalDate localDate = LocalDate.now();
     return dtf.format(localDate);
     }
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        mContext = context;
+    }
 
+    @Override
+    public void onDetach() {
+        super.onDetach();
+        mContext = null;
+    }
 }
 
 

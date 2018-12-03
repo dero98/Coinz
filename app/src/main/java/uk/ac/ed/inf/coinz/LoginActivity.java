@@ -83,6 +83,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                 if (task.isSuccessful()) {
                     finish();
                     Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                    new CurrentUser().setEmail(email);
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                     startActivity(intent);
                 } else {
