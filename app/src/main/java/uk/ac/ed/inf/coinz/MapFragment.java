@@ -2,19 +2,12 @@ package uk.ac.ed.inf.coinz;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Bundle;
-import android.support.annotation.ColorInt;
-import android.support.annotation.DrawableRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.support.v4.content.res.ResourcesCompat;
-import android.support.v4.graphics.drawable.DrawableCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -25,7 +18,6 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QuerySnapshot;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEngineListener;
 import com.mapbox.android.core.location.LocationEnginePriority;
@@ -34,7 +26,6 @@ import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.annotations.Icon;
-import com.mapbox.mapboxsdk.annotations.IconFactory;
 import com.mapbox.mapboxsdk.annotations.Marker;
 import com.mapbox.mapboxsdk.annotations.MarkerOptions;
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
@@ -60,7 +51,7 @@ import java.util.Map;
 
 
 public class MapFragment extends Fragment  implements OnMapReadyCallback, LocationEngineListener,
-        PermissionsListener, DownloadResponse {
+        PermissionsListener, DownloadResponse, DownloadResponseFromFireStore {
 
     private final String tag = "MapFragment";
     private String downloadDate = localdate(); // Format: YYYY/MM/DD
@@ -76,8 +67,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     private Button buttonCollect;
     private final String email=new CurrentUser().getEmail();
     private FirebaseFirestore db = FirebaseFirestore.getInstance();
-    Context mContext;
-
+    private Context mContext;
 
     private HashMap<Long,String> markersIDs=new HashMap<>();
     boolean exist;
@@ -94,7 +84,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     @Override
     public void onViewCreated(View view,Bundle savedInstanceState){
         super.onViewCreated(view, savedInstanceState);
-
+        mContext=getContext();
         this.view=view;
         Mapbox.getInstance(getActivity(), getString(R.string.access_token));
         mapView = (MapView) view.findViewById(R.id.mapboxMapView);
@@ -118,8 +108,9 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         }
 
         if(downloadDate.equals(localdate())){
-            String result=readFile();
-            processResult(result);
+            DownloadFromFireStore dowFs= new DownloadFromFireStore();
+            dowFs.listener=this;
+            dowFs.doInBackground(db);
 
         }else{
             DownloadFileTask dowJ= new DownloadFileTask(this);
@@ -139,13 +130,18 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
                                 public void onClick(View view) {
                                     marker.remove();
                                     buttonCollect.setVisibility(View.GONE);
+
                                    Map<String, Object> user = new HashMap<>();
                                    String IDofMarker=markersIDs.get(marker.getId());
+
                                     db.collection("user:"+email)
                                     .document("Coinz")
                                     .collection("NotCollected")
                                     .document(IDofMarker).delete();
+
                                     user.put("id",IDofMarker);
+                                    user.put("currency",marker.getTitle());
+                                    user.put("value",marker.getSnippet());
                                     db.collection("user"+email)
                                            .document("Coinz")
                                            .collection("Collected")
@@ -205,40 +201,30 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
             }
         }
 
-        db.collection("user:" + email).document("Coinz").
-                collection("NotCollected").get()
-                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                    @Override
-                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-
-                        if (!queryDocumentSnapshots.isEmpty()) {
-
-                            List<DocumentSnapshot> list = queryDocumentSnapshots.getDocuments();
-
-                            for (DocumentSnapshot d : list) {
-                                String id = d.get("id").toString();
-                                String value = d.get("value").toString();
-                                String currency = d.get("currency").toString();
-                                String marker_color = d.get("marker-color").toString();
-                                String market_symbol = d.get("marker-symbol").toString();
-                                double lat = Double.parseDouble(d.get("lat").toString());
-                                double lng = Double.parseDouble(d.get("lng").toString());
-                                Icon i = drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_color));
-                                Marker mp = map.addMarker(new MarkerOptions().title(currency + ":" + value)
-                                        .snippet(market_symbol).icon(i)
-                                        .position(new LatLng(lat, lng)));
-                                markersIDs.put(mp.getId(), id);
-
-
-                            }
-                            getActivity().finish();
-                        }
-
-
-                    }
-                });
 
     }
+
+    @Override
+   public void processResultFromFireStore( List<DocumentSnapshot> list,boolean notnull){
+        if(notnull){
+        for (DocumentSnapshot d : list) {
+            String id = d.get("id").toString();
+            String value = d.get("value").toString();
+            String currency = d.get("currency").toString();
+            String marker_color = d.get("marker-color").toString();
+            String market_symbol = d.get("marker-symbol").toString();
+            double lat = Double.parseDouble(d.get("lat").toString());
+            double lng = Double.parseDouble(d.get("lng").toString());
+            Icon i = IconDraw.drawableToIcon(mContext, R.drawable.ic_place, Color.parseColor(marker_color));
+            Marker mp = map.addMarker(new MarkerOptions().title(currency)
+                    .snippet(value).icon(i)
+                    .position(new LatLng(lat, lng)));
+            markersIDs.put(mp.getId(), id);
+        }
+
+        }
+    }
+
 
 //        for(Feature feature : featuresColl.features()){
 //
@@ -291,19 +277,6 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
 
 
 
-
-
-
-    public  static Icon drawableToIcon(@NonNull Context context, @DrawableRes int id, @ColorInt int colorRes) {
-        Drawable vectorDrawable = ResourcesCompat.getDrawable(context.getResources(), id, context.getTheme());
-        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(),
-                vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        vectorDrawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-        DrawableCompat.setTint(vectorDrawable, colorRes);
-        vectorDrawable.draw(canvas);
-        return IconFactory.getInstance(context).fromBitmap(bitmap);
-    }
 
     private void enableLocation() {
         if (PermissionsManager.areLocationPermissionsGranted(getActivity())) {
@@ -509,17 +482,7 @@ public String localdate(){
     LocalDate localDate = LocalDate.now();
     return dtf.format(localDate);
     }
-    @Override
-    public void onAttach(Context context) {
-        super.onAttach(context);
-        mContext = context;
-    }
 
-    @Override
-    public void onDetach() {
-        super.onDetach();
-        mContext = null;
-    }
 }
 
 

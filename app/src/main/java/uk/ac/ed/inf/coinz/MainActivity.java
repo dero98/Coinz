@@ -15,7 +15,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private DrawerLayout drawer;
     private final String tag = "MainActivity";
-    protected static MapFragment mapfrag= new MapFragment();
 
 
     @Override
@@ -64,7 +63,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             case R.id.nav_map:
 
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
-                       mapfrag).commit();
+                        new MapFragment()).commit();
                 break;
 
             case R.id.nav_share:

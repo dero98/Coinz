@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -78,7 +80,6 @@ public class DownloadFileTask extends AsyncTask<String, Void, String> {
 
     @Override
     protected void onPostExecute(String result) {
-
         super.onPostExecute(result);
         saveToFirestore(result);
         listener.processResult(result);
@@ -133,8 +134,11 @@ public class DownloadFileTask extends AsyncTask<String, Void, String> {
             });
         }
 
-
-
-
     }
+    public String localdate(){
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+        LocalDate localDate = LocalDate.now();
+        return dtf.format(localDate);
+    }
+
 }
