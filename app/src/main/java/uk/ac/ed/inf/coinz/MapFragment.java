@@ -110,7 +110,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         if(downloadDate.equals(localdate())){
             DownloadFromFireStore dowFs= new DownloadFromFireStore();
             dowFs.listener=this;
-            dowFs.doInBackground(db);
+            dowFs.doInBackground(db,"NotCollected");
 
         }else{
             DownloadFileTask dowJ= new DownloadFileTask(this);
@@ -142,7 +142,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
                                     user.put("id",IDofMarker);
                                     user.put("currency",marker.getTitle());
                                     user.put("value",marker.getSnippet());
-                                    db.collection("user"+email)
+                                    db.collection("user:"+email)
                                            .document("Coinz")
                                            .collection("Collected")
                                            .document(IDofMarker).set(user).addOnSuccessListener(new OnSuccessListener<Void>() {

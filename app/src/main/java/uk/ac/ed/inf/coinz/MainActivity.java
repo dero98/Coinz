@@ -66,6 +66,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         new MapFragment()).commit();
                 break;
 
+            case R.id.nav_wallet:
+
+                getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
+                        new WalletFragment()).commit();
+                break;
+
             case R.id.nav_share:
                 Toast.makeText(this,"share",Toast.LENGTH_LONG).show();
                 break;
