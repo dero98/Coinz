@@ -6,5 +6,4 @@ import java.util.List;
 
 public interface DownloadResponseFromFireStore {
     void processResultFromFireStore( List<DocumentSnapshot> list,boolean notnull);
-
 }

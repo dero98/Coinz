@@ -67,7 +67,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     private Button buttonCollect;
     private final String email=new CurrentUser().getEmail();
     private FirebaseFirestore db = FirebaseFirestore.getInstance();
-    private Context mContext;
+   // private Context mContext;
 
     private HashMap<Long,String> markersIDs=new HashMap<>();
     boolean exist;
@@ -84,7 +84,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     @Override
     public void onViewCreated(View view,Bundle savedInstanceState){
         super.onViewCreated(view, savedInstanceState);
-        mContext=getContext();
+        //mContext=getContext();
         this.view=view;
         Mapbox.getInstance(getActivity(), getString(R.string.access_token));
         mapView = (MapView) view.findViewById(R.id.mapboxMapView);
@@ -128,35 +128,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
                     buttonCollect.setOnClickListener(
                             new View.OnClickListener() {
                                 public void onClick(View view) {
-                                    marker.remove();
-                                    buttonCollect.setVisibility(View.GONE);
-
-                                   Map<String, Object> user = new HashMap<>();
-                                   String IDofMarker=markersIDs.get(marker.getId());
-
-                                    db.collection("user:"+email)
-                                    .document("Coinz")
-                                    .collection("NotCollected")
-                                    .document(IDofMarker).delete();
-
-                                    user.put("id",IDofMarker);
-                                    user.put("currency",marker.getTitle());
-                                    user.put("value",marker.getSnippet());
-                                    db.collection("user:"+email)
-                                           .document("Coinz")
-                                           .collection("Collected")
-                                           .document(IDofMarker).set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
-                                      @Override
-                                      public void onSuccess(Void avoid) {
-
-                                          Log.d(tag,"Sign up was successful");
-                                      }
-                                  }).addOnFailureListener(new OnFailureListener() {
-                                      @Override
-                                      public void onFailure(@NonNull Exception e) {
-                                          Log.d(tag, "Error adding document", e);
-                                      }
-                                  });
+                                    removeMarker(marker);
                                 }
                             } );
                     return false;
@@ -172,6 +144,42 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
                 buttonCollect.setVisibility(View.GONE);
             }
         });
+        }
+
+
+
+
+        public void removeMarker(Marker marker){
+            Map<String, Object> user = new HashMap<>();
+            String IDofMarker=markersIDs.get(marker.getId());
+            marker.remove();
+            buttonCollect.setVisibility(View.GONE);
+
+
+            db.collection("user:"+email)
+                    .document("Coinz")
+                    .collection("NotCollected")
+                    .document(IDofMarker).delete();
+
+            user.put("id",IDofMarker);
+            user.put("currency",marker.getTitle());
+            user.put("value",marker.getSnippet());
+            db.collection("user:"+email)
+                    .document("Coinz")
+                    .collection("Wallet")
+                    .document(IDofMarker).set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
+                @Override
+                public void onSuccess(Void avoid) {
+
+                    Log.d(tag,"Coins is added to Collected");
+                    Log.d(tag, "Id is"+IDofMarker);
+                }
+            }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Log.d(tag, "Error adding document", e);
+                }
+            });
         }
 
     @Override
@@ -215,7 +223,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
             String market_symbol = d.get("marker-symbol").toString();
             double lat = Double.parseDouble(d.get("lat").toString());
             double lng = Double.parseDouble(d.get("lng").toString());
-            Icon i = IconDraw.drawableToIcon(mContext, R.drawable.ic_place, Color.parseColor(marker_color));
+            Icon i = IconDraw.drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_color));
             Marker mp = map.addMarker(new MarkerOptions().title(currency)
                     .snippet(value).icon(i)
                     .position(new LatLng(lat, lng)));
@@ -483,6 +491,8 @@ public String localdate(){
     return dtf.format(localDate);
     }
 
+  //  @Override
+   // public void processResultFromFireStoreQuery( List<DocumentSnapshot> list,boolean notnull){}
 }
 
 

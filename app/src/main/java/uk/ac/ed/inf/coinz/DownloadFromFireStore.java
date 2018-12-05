@@ -12,6 +12,7 @@ import java.util.List;
 public class DownloadFromFireStore {
 
     public DownloadResponseFromFireStore listener = null;
+    public QueryResponseFromFireStore listenerQ = null;
     public String tag="DowloadFromFireStore";
     public boolean notnull = true;
 
@@ -29,10 +30,11 @@ public class DownloadFromFireStore {
                         if (!queryDocumentSnapshots.isEmpty()) {
 
                             List<DocumentSnapshot> list = queryDocumentSnapshots.getDocuments();
-                            listener.processResultFromFireStore(list, true);
+                            listener.processResultFromFireStore(list,true);
                             Log.d(tag,"Sign up was successful");
 
                         }else{
+                            listener.processResultFromFireStore(null,false);
                             Log.d(tag,"Sign up failed");
 
                         }
@@ -53,11 +55,11 @@ public class DownloadFromFireStore {
                 if (!queryDocumentSnapshots.isEmpty()) {
 
                     List<DocumentSnapshot> list = queryDocumentSnapshots.getDocuments();
-                    listener.processResultFromFireStore(list, true);
+                    listenerQ.processQueryFromFireStore(list, true);
                     Log.d(tag,"Sign up was successful");
 
                 }else{
-                    listener.processResultFromFireStore(null,false);
+                    listenerQ.processQueryFromFireStore(null,false);
 
                 }
             }
