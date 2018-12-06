@@ -24,6 +24,9 @@ import com.mapbox.android.core.location.LocationEnginePriority;
 import com.mapbox.android.core.location.LocationEngineProvider;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.annotations.Icon;
 import com.mapbox.mapboxsdk.annotations.Marker;
@@ -51,7 +54,7 @@ import java.util.Map;
 
 
 public class MapFragment extends Fragment  implements OnMapReadyCallback, LocationEngineListener,
-        PermissionsListener, DownloadResponse, DownloadResponseFromFireStore {
+        PermissionsListener, DownloadResponse, DownloadResponseFromFireStore,QueryResponseFromFireStore {
 
     private final String tag = "MapFragment";
     private String downloadDate = localdate(); // Format: YYYY/MM/DD
@@ -66,8 +69,8 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     private View view;
     private Button buttonCollect;
     private final String email=new CurrentUser().getEmail();
-    private FirebaseFirestore db = FirebaseFirestore.getInstance();
-   // private Context mContext;
+    public   FirebaseFirestore db;
+    // private Context mContext;
 
     private HashMap<Long,String> markersIDs=new HashMap<>();
     boolean exist;
@@ -84,6 +87,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
     @Override
     public void onViewCreated(View view,Bundle savedInstanceState){
         super.onViewCreated(view, savedInstanceState);
+        db=new MainActivity().db;
         //mContext=getContext();
         this.view=view;
         Mapbox.getInstance(getActivity(), getString(R.string.access_token));
@@ -108,9 +112,9 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         }
 
         if(downloadDate.equals(localdate())){
-            DownloadFromFireStore dowFs= new DownloadFromFireStore();
-            dowFs.listener=this;
-            dowFs.doInBackground(db,"NotCollected");
+            DownloadFromFireStore dowFs= new DownloadFromFireStore(getContext());
+            dowFs.listenerQ=this;
+            dowFs.doInBackgroundQueryLastUpload(db,localdate());
 
         }else{
             DownloadFileTask dowJ= new DownloadFileTask(this);
@@ -208,13 +212,31 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
                 e.printStackTrace();
             }
         }
+        FeatureCollection featuresColl= (FeatureCollection.fromJson(result)) ;
+        for(Feature feature : featuresColl.features()) {
+            Point p = (Point) feature.geometry();
+            String id = feature.properties().get("id").getAsString();
+            String value = feature.properties().get("value").getAsString();
+            String currency = feature.properties().get("currency").getAsString();
+            String marker_colorHex = feature.properties().get("marker-color").getAsString();
+            int marker_colorDec = Integer.parseInt(marker_colorHex.substring(1), 16);
+            Icon i = IconDraw.drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_colorHex));
+            String market_symbol = feature.properties().get("marker-symbol").getAsString();
+            Marker mp = map.addMarker(new MarkerOptions().title(currency + ":" + value)
+                    .snippet(market_symbol).icon(i)
+                    .position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
+
+
+            markersIDs.put(mp.getId(), id);
+        }
+
 
 
     }
 
     @Override
    public void processResultFromFireStore( List<DocumentSnapshot> list,boolean notnull){
-        if(notnull){
+        if(notnull && getContext()!=null){
         for (DocumentSnapshot d : list) {
             String id = d.get("id").toString();
             String value = d.get("value").toString();
@@ -230,6 +252,17 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
             markersIDs.put(mp.getId(), id);
         }
 
+        }
+    }
+    @Override
+    public void processQueryFromFireStore(List<DocumentSnapshot> list,boolean wasToDate){
+        if(wasToDate){
+            DownloadFromFireStore dowFs= new DownloadFromFireStore(null);
+            dowFs.listener=this;
+            dowFs.doInBackground(db,"NotCollected");
+        }
+        else{
+            processResult(readFile());
         }
     }
 
@@ -454,37 +487,38 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         super.onSaveInstanceState(outState);
         mapView.onSaveInstanceState(outState);
     }
-
     public String readFile(){
-    String path = getContext().getFilesDir().getAbsolutePath();
-    File file = new File(path + "/coinzmap.geojson.txt");
-    int length = (int) file.length();
+        String path = getContext().getFilesDir().getAbsolutePath();
+        File file = new File(path + "/coinzmap.geojson.txt");
+        int length = (int) file.length();
 
-    byte[] bytes = new byte[length];
+        byte[] bytes = new byte[length];
 
-    FileInputStream in = null;
+        FileInputStream in = null;
         try {
-        in = new FileInputStream(file);
-    } catch (FileNotFoundException e) {
-        e.printStackTrace();
-    }
-        try {
-        try {
-            in.read(bytes);
-        } catch (IOException e) {
+            in = new FileInputStream(file);
+        } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-    } finally {
         try {
-            in.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            try {
+                in.read(bytes);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } finally {
+            try {
+                in.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-    }
 
-    String contents = new String(bytes);
+        String contents = new String(bytes);
         return contents;
-}
+    }
+
+
 public String localdate(){
     DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     LocalDate localDate = LocalDate.now();

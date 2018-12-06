@@ -7,7 +7,9 @@ import android.util.Log;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.geojson.Point;
@@ -23,6 +25,7 @@ import java.net.URL;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class DownloadFileTask extends AsyncTask<String, Void, String> {
@@ -97,42 +100,55 @@ public class DownloadFileTask extends AsyncTask<String, Void, String> {
 
     }
 
-    private void saveToFirestore(String result) {
-
-        FeatureCollection featuresColl= (FeatureCollection.fromJson(result)) ;
-        Map<String, Object> user = new HashMap<>();
-        for(Feature feature : featuresColl.features()) {
-            String id=feature.properties().get("id").getAsString();
-            user.put("id",id);
-            String value = feature.properties().get("value").getAsString();
-            user.put("value",value);
-            String currency = feature.properties().get("currency").getAsString();
-            user.put("currency",currency);
-            String marker_color = feature.properties().get("marker-color").getAsString();
-            user.put("marker-color",marker_color);
-            String marker_symbol = feature.properties().get("marker-symbol").getAsString();
-            user.put("marker-symbol",marker_symbol);
-            Point p = (Point) feature.geometry();
-            double lat=p.coordinates().get(1);
-            double lng=p.coordinates().get(0);
-            user.put("lat",lat);
-            user.put("lng",lng);
-
-            db.collection("user:"+email).document("Coinz").
-                    collection("NotCollected").document(id)
-                    .set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
-                @Override
-                public void onSuccess(Void avoid) {
-
-                    Log.d(tag,"Sign up was successful");
+    public void saveToFirestore(String result) {
+        db.collection("user:" + email).document("Coinz").
+                collection("NotCollected").get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+            @Override
+            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                if (!queryDocumentSnapshots.isEmpty()) {
+                    List<DocumentSnapshot> list = queryDocumentSnapshots.getDocuments();
+                    for (DocumentSnapshot d : list) {
+                        d.getReference().delete();
+                    }
                 }
-            }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Log.d(tag, "Error adding document", e);
-                }
-            });
-        }
+                    FeatureCollection featuresColl= (FeatureCollection.fromJson(result)) ;
+                    Map<String, Object> user = new HashMap<>();
+                    for(Feature feature : featuresColl.features()) {
+                        String id=feature.properties().get("id").getAsString();
+                        user.put("id",id);
+                        String value = feature.properties().get("value").getAsString();
+                        user.put("value",value);
+                        String currency = feature.properties().get("currency").getAsString();
+                        user.put("currency",currency);
+                        String marker_color = feature.properties().get("marker-color").getAsString();
+                        user.put("marker-color",marker_color);
+                        String marker_symbol = feature.properties().get("marker-symbol").getAsString();
+                        user.put("marker-symbol",marker_symbol);
+                        Point p = (Point) feature.geometry();
+                        double lat=p.coordinates().get(1);
+                        double lng=p.coordinates().get(0);
+                        user.put("lat",lat);
+                        user.put("lng",lng);
+
+                        db.collection("user:"+email).document("Coinz").
+                                collection("NotCollected").document(id)
+                                .set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
+                            @Override
+                            public void onSuccess(Void avoid) {
+
+                                Log.d(tag,"Document was added successfully");
+                            }
+                        }).addOnFailureListener(new OnFailureListener() {
+                            @Override
+                            public void onFailure(@NonNull Exception e) {
+                                Log.d(tag, "Error adding document", e);
+                            }
+                        });
+                    }
+
+            }
+        });
+
 
     }
     public String localdate(){

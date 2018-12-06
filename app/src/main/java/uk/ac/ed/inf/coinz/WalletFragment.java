@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,6 +24,7 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,6 +44,7 @@ public class WalletFragment extends Fragment implements DownloadResponseFromFire
     private ListView listCoins;
     private ArrayList<String> coinsID ;
     private ArrayList<String> coins;
+    private ArrayList<String []> coinsInformation;
     private double totalNGolds;
 
 
@@ -61,7 +64,7 @@ public class WalletFragment extends Fragment implements DownloadResponseFromFire
 
         listCoins = (ListView) view.findViewById(R.id.ListCoins);
 
-        DownloadFromFireStore dowFs= new DownloadFromFireStore();
+        DownloadFromFireStore dowFs= new DownloadFromFireStore(null);
         dowFs.listener=this;
         dowFs.doInBackground(db,"Wallet");
 
@@ -70,11 +73,13 @@ public class WalletFragment extends Fragment implements DownloadResponseFromFire
     public void processResultFromFireStore(List<DocumentSnapshot> list, boolean notnull){
          coins = new ArrayList<>();
          coinsID = new ArrayList<>();
+         coinsInformation =new ArrayList<>();
 
         SharedPreferences settings = getContext().getSharedPreferences(preferencesFile, Context.MODE_PRIVATE);
 // use ”” as the default value (this might be the first time the app is run)
         HashMap<String,Double> currencies=new HashMap<>();
         double valueOfCurrency=Double.parseDouble(settings.getString("DOLR", ""));
+        Log.d(tag,"Value of DOLR is "+ valueOfCurrency);
         currencies.put("DOLR",valueOfCurrency);
 
         valueOfCurrency=Double.parseDouble(settings.getString("PENY", ""));
@@ -86,6 +91,7 @@ public class WalletFragment extends Fragment implements DownloadResponseFromFire
         valueOfCurrency=Double.parseDouble(settings.getString("SHIL", ""));
         currencies.put("SHIL",valueOfCurrency);
         boolean isGoldNull=true;
+        if(notnull){
         for (DocumentSnapshot d : list) {
             if(d.get("Golds")!=null){
                 isGoldNull=false;
@@ -93,22 +99,32 @@ public class WalletFragment extends Fragment implements DownloadResponseFromFire
                 textViewGolds.setText(tgolds);
                 totalNGolds=Double.parseDouble(tgolds);
             }else{
-            String id = d.get("id").toString();
+                String [] coinInf =new String[4];
+                String id = d.get("id").toString();
+                coinInf[0]=id;
             double value = Double.parseDouble(d.get("value").toString());
-            String currency = d.get("currency").toString();
+            coinInf[1]=value+"";
+                String currency = d.get("currency").toString();
+                coinInf[2]=currency;
+                Log.d(tag,"Currency is "+ currency);
+
             double exchangeRate=currencies.get(currency);
-            double golds=value*exchangeRate;
+                coinInf[3]=exchangeRate+"";
+                double golds=value*exchangeRate;
             coins.add(golds + " GOLDS you will get");
             coinsID.add(id);
+            coinsInformation.add(coinInf);
+
             }
       }
-      if(isGoldNull){
-          textViewGolds.setText("Total number of Golds on your account is 0");
-          totalNGolds=0;
-      }
         setList();
+        }
+        if(isGoldNull){
+                textViewGolds.setText("Total number of Golds on your account is 0");
+                totalNGolds=0;
+            }
+        }
 
-    }
    private void setList(){
        ArrayAdapter adapter= new ArrayAdapter(getContext(),
                android.R.layout.simple_list_item_1 , coins);
@@ -118,35 +134,85 @@ public class WalletFragment extends Fragment implements DownloadResponseFromFire
            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                cID=coinsID.get(position);
                String coinInformation=coins.get(position);
-               openDialog(coinInformation);
+               openDialog(position);
 
            }
        });
    }
 
-    private void openDialog(String coinInformation){
+    private void openDialog(int index){
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setMessage("Barev")
                 .setTitle("Bank");
-        builder.setPositiveButton("ExchangeToBan", new DialogInterface.OnClickListener() {
+        builder.setPositiveButton("Exchange to bank", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int id) {
-                DownloadFromFireStore dowFs2= new DownloadFromFireStore();
+                DownloadFromFireStore dowFs2= new DownloadFromFireStore(null);
                 dowFs2.listenerQ=WalletFragment.this;
                 dowFs2.doInBackgroundQuery(db,"Bank",cID);
-
-
             }
         });
 
 
-        builder.setNegativeButton("llll", new DialogInterface.OnClickListener() {
+        builder.setNeutralButton("SpareChange", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int id) {
-                // User cancelled the dialog
+                openDialogSpareChange(index);
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
             }
         });
         AlertDialog dialog = builder.create();
         dialog.show();
+    }
+
+    private void openDialogSpareChange(int index){
+        AlertDialog.Builder alert = new AlertDialog.Builder(getContext());
+
+        final EditText edittext = new EditText(getContext());
+        alert.setMessage("Enter the email");
+        alert.setTitle("Sending the coin");
+        alert.setView(edittext);
+        alert.setView(edittext);
+
+        alert.setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+
+                String email_rec = edittext.getText().toString();
+                db.collection("user:"+email_rec).get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                    @Override
+                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                        if (!queryDocumentSnapshots.isEmpty()) {
+                            HashMap<String,Object> message=new HashMap<>();
+                            String coinInformation[] =coinsInformation.get(index);
+                            message.put("id",coinInformation[0]);
+                            message.put("value",coinInformation[1]);
+                            message.put("currency",coinInformation[2]);
+                            message.put("exchangeRate",coinInformation[3]);
+                            message.put("sendBy",email);
+                            db.collection("user:"+email_rec)
+                                    .document("Coinz").collection("Chat").add(message);
+
+                        }else{
+                            Toast.makeText(getContext(), "Wrong email", Toast.LENGTH_SHORT).show();
+
+                        }
+                    }});
+
+            }
+        });
+
+        alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                // what ever you want to do with No option.
+            }
+        });
+
+        alert.show();
+
+
+
     }
 
 
@@ -175,8 +241,8 @@ public class WalletFragment extends Fragment implements DownloadResponseFromFire
                             textViewGolds.setText("Total number of Golds on your account is "+
                                     totalNGolds);
 
-
                             coinsID.remove(index);
+                            coinsInformation.remove(index);
                             setList();
 
                         }
