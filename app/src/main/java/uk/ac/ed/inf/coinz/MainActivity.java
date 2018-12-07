@@ -8,8 +8,8 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.MenuItem;
-import android.widget.Toast;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
@@ -31,6 +31,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
                 .setTimestampsInSnapshotsEnabled(true)
                 .build();
+        db.setFirestoreSettings(settings);
 
         drawer=findViewById(R.id.drawer_layout);
         NavigationView navigationView= findViewById(R.id.nav_view);
@@ -42,7 +43,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if(savedInstanceState==null){
             getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                     new MapFragment()).commit();
-        navigationView.setCheckedItem(R.id.nav_map);
+            Log.d(tag,"MapFragment is launched");
+            navigationView.setCheckedItem(R.id.nav_map);
     }
     }
 
@@ -62,31 +64,37 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             case R.id.nav_bank:
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new BankFragment()).commit();
+                Log.d(tag,"BankFragment is launched");
+
                 break;
             case R.id.nav_settings:
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new SettingsFragment()).commit();
+                Log.d(tag,"SettingsFragment is launched");
+
                 break;
 
             case R.id.nav_map:
-
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new MapFragment()).commit();
+                Log.d(tag,"MapFragment is launched");
+
                 break;
 
             case R.id.nav_wallet:
 
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new WalletFragment()).commit();
+                Log.d(tag,"WalletFragment is launched");
+
                 break;
 
-            case R.id.nav_share:
-                Toast.makeText(this,"share",Toast.LENGTH_LONG).show();
-                break;
 
             case R.id.nav_message:
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new MessageFragment()).commit();
+                Log.d(tag,"MessageFragment is launched");
+
                 break;
 
 

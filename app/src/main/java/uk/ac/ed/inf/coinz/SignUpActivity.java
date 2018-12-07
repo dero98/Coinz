@@ -126,12 +126,15 @@ public class SignUpActivity extends AppCompatActivity  implements View.OnClickLi
                         }else {
 
                             if (task.getException() instanceof FirebaseAuthUserCollisionException) {
+                                progressBar.setVisibility(View.GONE);
                                 Toast.makeText(getApplicationContext(),
                                         "You are already registered", Toast.LENGTH_SHORT).show();
 
                             } else {
+                                progressBar.setVisibility(View.GONE);
                                 Toast.makeText(getApplicationContext(),
                                         task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+
                             }
 
                         }
@@ -167,6 +170,11 @@ public class SignUpActivity extends AppCompatActivity  implements View.OnClickLi
         });
 
     }
-
+    @Override
+    public void onBackPressed() {
+            super.onBackPressed();
+        finish();
+        startActivity(new Intent(this, LoginActivity.class));
+    }
 
 }

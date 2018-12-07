@@ -81,7 +81,9 @@ public class DownloadFromFireStore {
     protected void doInBackgroundQueryLastUpload(FirebaseFirestore firebaseFirestore,String date) {
         String email = new CurrentUser().getEmail();
         List<DocumentSnapshot> list;
-        firebaseFirestore.collection("user:" + email).whereEqualTo("lastDownloadDate",date).get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+        firebaseFirestore.collection("user:" + email)
+                .whereEqualTo("lastDownloadDate",date).get()
+                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
             @Override
             public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
 
@@ -90,10 +92,11 @@ public class DownloadFromFireStore {
                     Log.d(tag,"lastDownloadDate is "+ date);
 
                 }else{
-                    HashMap<String,Object> coinz=new HashMap<>();
-                    coinz.put("lastDownloadDate",date);
+                    HashMap<String,Object> dateUpldate=new HashMap<>();
+                    dateUpldate.put("lastDownloadDate",date);
+                    firebaseFirestore.collection("user:" + email)
+                            .document("DownloadDate").set(dateUpldate);
 
-                    firebaseFirestore.collection("user:" + email).add(coinz);
                     new DownloadFileTask(null).saveToFirestore(readFile());
                     listenerQ.processQueryFromFireStore(null, false);
 

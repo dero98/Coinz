@@ -14,4 +14,27 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
         android:layout_marginTop="62dp" />
+
+
+    <TextView
+        android:id="@+id/TextViewNoMessages"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="No Messages"
+    android:textSize="30sp"
+    android:layout_centerInParent="true"
+        android:visibility="gone"/>
+
+    <TextView
+        android:id="@+id/textViewMessages"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="0dp"
+        android:background="@color/colorLight"
+        android:text="Messages"
+        android:textAlignment="center"
+        android:textSize="25sp"
+        android:textStyle="italic" />
 </RelativeLayout>

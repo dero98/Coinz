@@ -1,18 +1,19 @@
 package uk.ac.ed.inf.coinz;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -53,49 +54,42 @@ import java.util.List;
 import java.util.Map;
 
 
-public class MapFragment extends Fragment  implements OnMapReadyCallback, LocationEngineListener,
-        PermissionsListener, DownloadResponse, DownloadResponseFromFireStore,QueryResponseFromFireStore {
+public class MapFragment extends Fragment implements OnMapReadyCallback, LocationEngineListener,
+        PermissionsListener, DownloadResponse, DownloadResponseFromFireStore, QueryResponseFromFireStore {
 
     private final String tag = "MapFragment";
     private String downloadDate = localdate(); // Format: YYYY/MM/DD
     private final String preferencesFile = "MyPrefsFile"; // for storing preferences
 
     private MapView mapView;
-    private  MapboxMap map;
+    private MapboxMap map;
     private PermissionsManager permissionsManager;
     private LocationEngine locationEngine;
     private LocationLayerPlugin locationLayerPlugin;
     private Location originLocation;
-    private View view;
-    private Button buttonCollect;
-    private final String email=new CurrentUser().getEmail();
-    public   FirebaseFirestore db;
-    // private Context mContext;
-
-    private HashMap<Long,String> markersIDs=new HashMap<>();
-    boolean exist;
-
-
+    private FloatingActionButton buttonCollect;
+    private final String email = new CurrentUser().getEmail();
+    public FirebaseFirestore db;
+private HashMap<Long, String> markersIDs = new HashMap<>();
 
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-       return getLayoutInflater().inflate(R.layout.fragment_map, container, false);
+        return getLayoutInflater().inflate(R.layout.fragment_map, container, false);
 
     }
+
     @Override
-    public void onViewCreated(View view,Bundle savedInstanceState){
+    public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        db=new MainActivity().db;
-        //mContext=getContext();
-        this.view=view;
-        Mapbox.getInstance(getActivity(), getString(R.string.access_token));
-        mapView = (MapView) view.findViewById(R.id.mapboxMapView);
-        buttonCollect=view.findViewById(R.id.buttonCollect);
+        db = new MainActivity().db;
+        Mapbox.getInstance(requireActivity(), getString(R.string.access_token));
+        mapView = view.findViewById(R.id.mapboxMapView);
+        buttonCollect = view.findViewById(R.id.buttonCollect);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
-   }
+    }
 
     @Override
     public void onMapReady(MapboxMap mapboxMap) {
@@ -110,81 +104,95 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
 // Make location information available
             enableLocation();
         }
+        downloadJSON();
+        markerMapListener();
 
-        if(downloadDate.equals(localdate())){
-            DownloadFromFireStore dowFs= new DownloadFromFireStore(getContext());
-            dowFs.listenerQ=this;
-            dowFs.doInBackgroundQueryLastUpload(db,localdate());
+    }
+    public void downloadJSON(){
+        if (downloadDate.equals(localdate())) {
+            DownloadFromFireStore dowFs = new DownloadFromFireStore(getContext());
+            dowFs.listenerQ = this;
+            dowFs.doInBackgroundQueryLastUpload(db, localdate());
 
-        }else{
-            DownloadFileTask dowJ= new DownloadFileTask(this);
-            dowJ.listener=this;
-            dowJ.execute("http://homepages.inf.ed.ac.uk/stg/coinz/"+localdate()+"/coinzmap.geojson");
+        } else {
+            DownloadFileTask dowJ = new DownloadFileTask(this);
+            dowJ.listener = this;
+            dowJ.execute("http://homepages.inf.ed.ac.uk/stg/coinz/" + localdate() + "/coinzmap.geojson");
 
         }
-        map.setOnMarkerClickListener(new MapboxMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(@NonNull Marker marker) {
-                LatLng originLatLng = new LatLng(originLocation.getLatitude(), originLocation.getLongitude());
-                double distance=marker.getPosition().distanceTo(originLatLng);
-                if(distance<=150){
-                    buttonCollect.setVisibility(View.VISIBLE);
-                    buttonCollect.setOnClickListener(
-                            new View.OnClickListener() {
-                                public void onClick(View view) {
-                                    removeMarker(marker);
-                                }
-                            } );
-                    return false;
+    }
+
+    public void markerMapListener() {
+        map.setOnMarkerClickListener((@NonNull Marker marker)->{
+                if(downloadDate.equals(localdate())) {
+                    LatLng originLatLng = new LatLng(originLocation.getLatitude(), originLocation.getLongitude());
+                    double distance = marker.getPosition().distanceTo(originLatLng);
+                    if (distance <= 150) {
+                        buttonCollect.setVisibility(View.VISIBLE);
+                        buttonCollect.setOnClickListener(
+                                new View.OnClickListener() {
+                                    public void onClick(View view) {
+                                        removeMarker(marker);
+                                    }
+                                });
+                        return false;
+                    } else {
+                        buttonCollect.setVisibility(View.GONE);
+                        return false;
+                    }
+
                 }else{
-                    buttonCollect.setVisibility(View.GONE);
-                    return false;
+                    startActivity(new Intent(getActivity(), MainActivity.class));
+                    getActivity().finish();
                 }
-            }
+                return false;
         });
         map.addOnMapClickListener(new MapboxMap.OnMapClickListener() {
             @Override
             public void onMapClick(@NonNull LatLng point) {
+                if(downloadDate.equals(localdate())){
                 buttonCollect.setVisibility(View.GONE);
+                }else{
+                    startActivity(new Intent(getActivity(), MainActivity.class));
+                    getActivity().finish();
+                }
             }
         });
-        }
+    }
 
 
+    public void removeMarker(Marker marker) {
+        Map<String, Object> user = new HashMap<>();
+        String IDofMarker = markersIDs.get(marker.getId());
+        marker.remove();
+        buttonCollect.setVisibility(View.GONE);
 
 
-        public void removeMarker(Marker marker){
-            Map<String, Object> user = new HashMap<>();
-            String IDofMarker=markersIDs.get(marker.getId());
-            marker.remove();
-            buttonCollect.setVisibility(View.GONE);
+        db.collection("user:" + email)
+                .document("Coinz")
+                .collection("NotCollected")
+                .document(IDofMarker).delete();
 
+        user.put("id", IDofMarker);
+        user.put("currency", marker.getTitle());
+        user.put("value", marker.getSnippet());
+        db.collection("user:" + email)
+                .document("Coinz")
+                .collection("Wallet")
+                .document(IDofMarker).set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
+            @Override
+            public void onSuccess(Void avoid) {
 
-            db.collection("user:"+email)
-                    .document("Coinz")
-                    .collection("NotCollected")
-                    .document(IDofMarker).delete();
-
-            user.put("id",IDofMarker);
-            user.put("currency",marker.getTitle());
-            user.put("value",marker.getSnippet());
-            db.collection("user:"+email)
-                    .document("Coinz")
-                    .collection("Wallet")
-                    .document(IDofMarker).set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
-                @Override
-                public void onSuccess(Void avoid) {
-
-                    Log.d(tag,"Coins is added to Collected");
-                    Log.d(tag, "Id is"+IDofMarker);
-                }
-            }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Log.d(tag, "Error adding document", e);
-                }
-            });
-        }
+                Log.d(tag, "Coins is added to Collected");
+                Log.d(tag, "Id is" + IDofMarker);
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.d(tag, "Error adding document", e);
+            }
+        });
+    }
 
     @Override
     public void processResult(String result) {
@@ -212,8 +220,8 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
                 e.printStackTrace();
             }
         }
-        FeatureCollection featuresColl= (FeatureCollection.fromJson(result)) ;
-        for(Feature feature : featuresColl.features()) {
+        FeatureCollection featuresColl = (FeatureCollection.fromJson(result));
+        for (Feature feature : featuresColl.features()) {
             Point p = (Point) feature.geometry();
             String id = feature.properties().get("id").getAsString();
             String value = feature.properties().get("value").getAsString();
@@ -222,8 +230,8 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
             int marker_colorDec = Integer.parseInt(marker_colorHex.substring(1), 16);
             Icon i = IconDraw.drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_colorHex));
             String market_symbol = feature.properties().get("marker-symbol").getAsString();
-            Marker mp = map.addMarker(new MarkerOptions().title(currency + ":" + value)
-                    .snippet(market_symbol).icon(i)
+            Marker mp = map.addMarker(new MarkerOptions().title(currency)
+                    .snippet(value).icon(i)
                     .position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
 
 
@@ -231,92 +239,39 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         }
 
 
-
     }
 
     @Override
-   public void processResultFromFireStore( List<DocumentSnapshot> list,boolean notnull){
-        if(notnull && getContext()!=null){
-        for (DocumentSnapshot d : list) {
-            String id = d.get("id").toString();
-            String value = d.get("value").toString();
-            String currency = d.get("currency").toString();
-            String marker_color = d.get("marker-color").toString();
-            String market_symbol = d.get("marker-symbol").toString();
-            double lat = Double.parseDouble(d.get("lat").toString());
-            double lng = Double.parseDouble(d.get("lng").toString());
-            Icon i = IconDraw.drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_color));
-            Marker mp = map.addMarker(new MarkerOptions().title(currency)
-                    .snippet(value).icon(i)
-                    .position(new LatLng(lat, lng)));
-            markersIDs.put(mp.getId(), id);
-        }
+    public void processResultFromFireStore(List<DocumentSnapshot> list, boolean notnull) {
+        if (notnull && getContext() != null) {
+            for (DocumentSnapshot d : list) {
+                String id = d.get("id").toString();
+                String value = d.get("value").toString();
+                String currency = d.get("currency").toString();
+                String marker_color = d.get("marker-color").toString();
+                String market_symbol = d.get("marker-symbol").toString();
+                double lat = Double.parseDouble(d.get("lat").toString());
+                double lng = Double.parseDouble(d.get("lng").toString());
+                Icon i = IconDraw.drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_color));
+                Marker mp = map.addMarker(new MarkerOptions().title(currency)
+                        .snippet(value).icon(i)
+                        .position(new LatLng(lat, lng)));
+                markersIDs.put(mp.getId(), id);
+            }
 
         }
     }
+
     @Override
-    public void processQueryFromFireStore(List<DocumentSnapshot> list,boolean wasToDate){
-        if(wasToDate){
-            DownloadFromFireStore dowFs= new DownloadFromFireStore(null);
-            dowFs.listener=this;
-            dowFs.doInBackground(db,"NotCollected");
-        }
-        else{
+    public void processQueryFromFireStore(List<DocumentSnapshot> list, boolean wasToDate) {
+        if (wasToDate) {
+            DownloadFromFireStore dowFs = new DownloadFromFireStore(null);
+            dowFs.listener = this;
+            dowFs.doInBackground(db, "NotCollected");
+        } else {
             processResult(readFile());
         }
     }
-
-
-//        for(Feature feature : featuresColl.features()){
-//
-//            Point p = (Point) feature.geometry();
-//            String id=feature.properties().get("id").getAsString();
-//            db.collection("user:"+email).document("Coinz").
-//                    collection("NotCollected").whereEqualTo("id",id).get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-//                @Override
-//                public void onComplete(@NonNull Task<QuerySnapshot> task) {
-//                    if (task.isSuccessful()) {
-//
-//                        String value = feature.properties().get("value").getAsString();
-//                        String currency = feature.properties().get("currency").getAsString();
-//                        String marker_colorHex = feature.properties().get("marker-color").getAsString();
-//                        int marker_colorDec = Integer.parseInt(marker_colorHex.substring(1), 16);
-//                        Icon i = drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_colorHex));
-//                        String market_symbol = feature.properties().get("marker-symbol").getAsString();
-//                        Marker mp = map.addMarker(new MarkerOptions().title(currency + ":" + value)
-//                                .snippet(market_symbol).icon(i)
-//                                .position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
-//
-//
-//                        markersIDs.put(mp.getId(), id);
-//                        for (DocumentSnapshot document : task.getResult()) {
-//                            Log.d(tag, document.getId() + " => " + document.getData());
-//                        }
-//                    } else {
-//                        Log.w(tag, "Error getting documents.", task.getException());
-//                    }
-//                }
-//            });
-
-
-
-
-
-
-                    //getResult().exists();
-           // DocumentSnapshot dc;
-          //   docRef.get().continueWithTask(new Continuation<DocumentSnapshot, Task<DocumentSnapshot>>() {
-          //      @Override
-           //     public Task<DocumentSnapshot> then(@NonNull Task<DocumentSnapshot> task) throws Exception {
-           //         return task ;
-           //     }
-          //  });
-
-
-
-
-
-
 
 
     private void enableLocation() {
@@ -451,6 +406,7 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         if (locationLayerPlugin != null) {
             locationLayerPlugin.onStop();
         }
+
         mapView.onStop();
 
         Log.d(tag, "[onStop] Storing lastDownloadDate of " + downloadDate);
@@ -487,7 +443,9 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         super.onSaveInstanceState(outState);
         mapView.onSaveInstanceState(outState);
     }
-    public String readFile(){
+
+    public String readFile() {
+
         String path = getContext().getFilesDir().getAbsolutePath();
         File file = new File(path + "/coinzmap.geojson.txt");
         int length = (int) file.length();
@@ -518,15 +476,12 @@ public class MapFragment extends Fragment  implements OnMapReadyCallback, Locati
         return contents;
     }
 
-
-public String localdate(){
-    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd");
-    LocalDate localDate = LocalDate.now();
-    return dtf.format(localDate);
+    public String localdate() {
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+        LocalDate localDate = LocalDate.now();
+        return dtf.format(localDate);
     }
 
-  //  @Override
-   // public void processResultFromFireStoreQuery( List<DocumentSnapshot> list,boolean notnull){}
 }
 
 

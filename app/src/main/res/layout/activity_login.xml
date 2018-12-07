@@ -29,7 +29,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:background="@color/colorBlueDark">
+        android:background="@color/colorPrimary">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -48,6 +48,7 @@
                 android:hint="email"
                 android:inputType="textEmailAddress"
                 android:paddingBottom="15dp"
+                android:textColor="@android:color/background_light"
                 android:textColorHint="@color/colorAccent" />
 
             <EditText
@@ -58,6 +59,7 @@
                 android:hint="password"
                 android:inputType="textPassword"
                 android:paddingBottom="15dp"
+                android:textColor="@android:color/background_light"
                 android:textColorHint="@color/colorAccent" />
 
             <Button
