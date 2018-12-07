@@ -19,6 +19,7 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEngineListener;
 import com.mapbox.android.core.location.LocationEnginePriority;
@@ -143,20 +144,17 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
 
                 }else{
                     startActivity(new Intent(getActivity(), MainActivity.class));
-                    getActivity().finish();
+                    requireActivity().finish();
                 }
                 return false;
         });
-        map.addOnMapClickListener(new MapboxMap.OnMapClickListener() {
-            @Override
-            public void onMapClick(@NonNull LatLng point) {
+        map.addOnMapClickListener((@NonNull LatLng point)->{
                 if(downloadDate.equals(localdate())){
                 buttonCollect.setVisibility(View.GONE);
                 }else{
                     startActivity(new Intent(getActivity(), MainActivity.class));
-                    getActivity().finish();
+                    requireActivity().finish();
                 }
-            }
         });
     }
 
@@ -183,7 +181,7 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
             @Override
             public void onSuccess(Void avoid) {
 
-                Log.d(tag, "Coins is added to Collected");
+                Log.d(tag, "Coins is added to Walle");
                 Log.d(tag, "Id is" + IDofMarker);
             }
         }).addOnFailureListener(new OnFailureListener() {
@@ -205,39 +203,49 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
                 String quid = json.getJSONObject("rates").getString("QUID");
                 String peny = json.getJSONObject("rates").getString("PENY");
                 downloadDate = localdate();
+                if(getContext()!=null){
+
                 SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
                         Context.MODE_PRIVATE);
-                SharedPreferences.Editor editor = settings.edit();
-                editor.putString("lastDownloadDate", downloadDate);
-                editor.putString("SHIL", shil);
-                editor.putString("DOLR", dolr);
-                editor.putString("QUID", quid);
-                editor.putString("PENY", peny);
-// Apply the edits!
-                editor.apply();
+                    SharedPreferences.Editor editor = settings.edit();
+                    editor.putString("lastDownloadDate", downloadDate);
+                    editor.putString("SHIL", shil);
+                    editor.putString("DOLR", dolr);
+                    editor.putString("QUID", quid);
+                    editor.putString("PENY", peny);
+                    editor.apply();
+                }else{
+                    Log.d(tag, "NullPointException at " +
+                            "getContext() in processResult(String result)");
+                }
+
 //
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
         FeatureCollection featuresColl = (FeatureCollection.fromJson(result));
-        for (Feature feature : featuresColl.features()) {
-            Point p = (Point) feature.geometry();
-            String id = feature.properties().get("id").getAsString();
-            String value = feature.properties().get("value").getAsString();
-            String currency = feature.properties().get("currency").getAsString();
-            String marker_colorHex = feature.properties().get("marker-color").getAsString();
-            int marker_colorDec = Integer.parseInt(marker_colorHex.substring(1), 16);
-            Icon i = IconDraw.drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_colorHex));
-            String market_symbol = feature.properties().get("marker-symbol").getAsString();
-            Marker mp = map.addMarker(new MarkerOptions().title(currency)
-                    .snippet(value).icon(i)
-                    .position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
+        if(featuresColl.features()!=null) {
+            for (Feature feature : featuresColl.features()) {
+                Point p = (Point) feature.geometry();
+                JsonObject jsProperties= feature.properties();
+                if(jsProperties!=null && p!=null){
+                String id = jsProperties.get("id").getAsString();
+                String value = jsProperties.get("value").getAsString();
+                String currency = jsProperties.get("currency").getAsString();
+                String marker_colorHex = jsProperties.get("marker-color").getAsString();
+                int marker_colorDec = Integer.parseInt(marker_colorHex.substring(1), 16);
+                Icon i = IconDraw.drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_colorHex));
+                String market_symbol = jsProperties.get("marker-symbol").getAsString();
+                Marker mp = map.addMarker(new MarkerOptions().title(currency)
+                        .snippet(value).icon(i)
+                        .position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
 
 
-            markersIDs.put(mp.getId(), id);
+                markersIDs.put(mp.getId(), id);
+            }
+            }
         }
-
 
     }
 
@@ -275,14 +283,21 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
 
 
     private void enableLocation() {
-        if (PermissionsManager.areLocationPermissionsGranted(getActivity())) {
+        try{
+        if (PermissionsManager.areLocationPermissionsGranted(requireActivity())) {
             Log.d(tag, "Permissions are granted");
             initializeLocationEngine();
             initializeLocationLayer();
-        } else {
+        }
+        else {
             Log.d(tag, "Permissions are not granted");
             permissionsManager = new PermissionsManager(this);
             permissionsManager.requestLocationPermissions(getActivity());
+        }
+
+        }catch (NullPointerException e){
+            e.printStackTrace();
+
         }
     }
 
@@ -439,13 +454,13 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
     }
 
     @Override
-    public void onSaveInstanceState(Bundle outState) {
+    public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         mapView.onSaveInstanceState(outState);
     }
 
     public String readFile() {
-
+      if(getContext()!=null){
         String path = getContext().getFilesDir().getAbsolutePath();
         File file = new File(path + "/coinzmap.geojson.txt");
         int length = (int) file.length();
@@ -472,8 +487,11 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
             }
         }
 
-        String contents = new String(bytes);
-        return contents;
+        return new String(bytes);
+    }else{
+          Log.d(tag,"NullPointException at getContext() in readFile()");
+      }
+    return "";
     }
 
     public String localdate() {

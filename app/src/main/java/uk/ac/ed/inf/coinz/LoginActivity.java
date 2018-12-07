@@ -41,7 +41,6 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                 && getIntent().getAction().equals(Intent.ACTION_MAIN)) {
 
             finish();
-            return;
         }
 
     }
