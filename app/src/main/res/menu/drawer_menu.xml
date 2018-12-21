@@ -29,12 +29,4 @@
 
     </group>
 
-    <item android:title="Comm">
-        <menu>
-            <item
-                android:id="@+id/nav_share"
-                android:icon="@drawable/ic_bank"
-                android:title="Share" />
-        </menu>
-    </item>
 </menu>

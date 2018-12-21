@@ -3,7 +3,6 @@ package uk.ac.ed.inf.coinz;
 import android.content.Context;
 import android.util.Log;
 
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
@@ -20,121 +19,123 @@ public class DownloadFromFireStore {
     public DownloadResponseFromFireStore listener = null;
     public QueryResponseFromFireStore listenerQ = null;
     private Context context;
-
-    public String tag="DowloadFromFireStore";
-    public boolean notnull = true;
-
-    List<DocumentSnapshot> list;
+    private String tag = "DowloadFromFireStore";
 
 
-    public DownloadFromFireStore(Context context) {
-        this.context =  context;
+
+      DownloadFromFireStore(Context context) {
+        this.context = context;
     }
 
 
-    protected void doInBackground(FirebaseFirestore firebaseFirestore,String path) {
+    protected void doInBackground(FirebaseFirestore firebaseFirestore, String path) {
         String email = new CurrentUser().getEmail();
-        List<DocumentSnapshot> list;
         firebaseFirestore.collection("user:" + email).document("Coinz").
                 collection(path).get()
-                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                    @Override
-                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                .addOnSuccessListener((QuerySnapshot queryDocumentSnapshots) ->{
 
                         if (!queryDocumentSnapshots.isEmpty()) {
 
-                            List<DocumentSnapshot> list = queryDocumentSnapshots.getDocuments();
-                            listener.processResultFromFireStore(list,true);
-                            Log.d(tag,"Documents download succeed");
+                            List<DocumentSnapshot> list= queryDocumentSnapshots.getDocuments();
+                            listener.processResultFromFireStore(list, true);
+                            Log.d(tag, "Documents download succeed");
 
-                        }else{
-                            listener.processResultFromFireStore(null,false);
-                            Log.d(tag,"No documents to show");
+                        } else {
+                            listener.processResultFromFireStore(null, false);
+                            Log.d(tag, "No documents to show");
 
                         }
+
+                });
+
+
+    }
+
+    protected void doInBackgroundQuery(FirebaseFirestore firebaseFirestore, String path, String id) {
+        String email = new CurrentUser().getEmail();
+        firebaseFirestore.collection("user:" + email).document("Coinz").
+                collection(path).whereEqualTo("id", id).get()
+                .addOnSuccessListener((QuerySnapshot queryDocumentSnapshots) -> {
+
+            if (!queryDocumentSnapshots.isEmpty()) {
+                List<DocumentSnapshot> list = queryDocumentSnapshots.getDocuments();
+                listenerQ.processQueryFromFireStore(list, true);
+                Log.d(tag, "Sign up was successful");
+
+            } else {
+                listenerQ.processQueryFromFireStore(null, false);
+
+            }
+        });
+    }
+
+    protected void doInBackgroundQueryLastUpload(FirebaseFirestore firebaseFirestore, String date) {
+        String email = new CurrentUser().getEmail();
+        firebaseFirestore.collection("user:" + email)
+                .whereEqualTo("lastDownloadDate", date).get()
+                .addOnSuccessListener((QuerySnapshot queryDocumentSnapshots) -> {
+
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        listenerQ.processQueryFromFireStore(null, true);
+                        Log.d(tag, "[doInBackgroundQueryLastUpload] lastDownloadDate is " + date);
+
+                    } else {
+                        HashMap<String, Object> dateUpldate = new HashMap<>();
+                        dateUpldate.put("lastDownloadDate", date);
+                        firebaseFirestore.collection("user:" + email)
+                                .document("DownloadDate").set(dateUpldate);
+
+                       // new DownloadFileTask(null, false)
+                       //         .saveToFirestore(readFile());
+                        listenerQ.processQueryFromFireStore(null, false);
                     }
                 });
 
 
     }
 
-    protected void doInBackgroundQuery(FirebaseFirestore firebaseFirestore,String path,String id) {
-        String email = new CurrentUser().getEmail();
-        List<DocumentSnapshot> list;
-        firebaseFirestore.collection("user:" + email).document("Coinz").
-                collection(path).whereEqualTo("id",id).get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-            @Override
-            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+    private String readFile() {
+        if (context != null) {
+            String path = context.getFilesDir().getAbsolutePath();
+            File file = new File(path + "/coinzmap_geojson.txt");
+            int length = (int) file.length();
 
-                if (!queryDocumentSnapshots.isEmpty()) {
-                    List<DocumentSnapshot> list = queryDocumentSnapshots.getDocuments();
-                    listenerQ.processQueryFromFireStore(list, true);
-                    Log.d(tag,"Sign up was successful");
+            byte[] bytes = new byte[length];
 
-                }else{
-                    listenerQ.processQueryFromFireStore(null,false);
-
-                }
-            }
-        });
-    }
-    protected void doInBackgroundQueryLastUpload(FirebaseFirestore firebaseFirestore,String date) {
-        String email = new CurrentUser().getEmail();
-        List<DocumentSnapshot> list;
-        firebaseFirestore.collection("user:" + email)
-                .whereEqualTo("lastDownloadDate",date).get()
-                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-            @Override
-            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-
-                if (!queryDocumentSnapshots.isEmpty()) {
-                    listenerQ.processQueryFromFireStore(null,true);
-                    Log.d(tag,"lastDownloadDate is "+ date);
-
-                }else{
-                    HashMap<String,Object> dateUpldate=new HashMap<>();
-                    dateUpldate.put("lastDownloadDate",date);
-                    firebaseFirestore.collection("user:" + email)
-                            .document("DownloadDate").set(dateUpldate);
-
-                    new DownloadFileTask(null).saveToFirestore(readFile());
-                    listenerQ.processQueryFromFireStore(null, false);
-
-                }
-            }
-        });
-
-
-
-    }
-    public String readFile(){
-        String path = context.getFilesDir().getAbsolutePath();
-        File file = new File(path + "/coinzmap.geojson.txt");
-        int length = (int) file.length();
-
-        byte[] bytes = new byte[length];
-
-        FileInputStream in = null;
-        try {
-            in = new FileInputStream(file);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        try {
+            FileInputStream in = null;
             try {
-                in.read(bytes);
-            } catch (IOException e) {
+                in = new FileInputStream(file);
+            } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
-        } finally {
             try {
-                in.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+                try {
+                    if (in != null) {
+                        in.read(bytes);
+                    } else Log.d(tag, "[readFile] method 'read' produced NullPointException " +
+                            "at in.read(bytes)");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } finally {
+                try {
+                    if (in != null)
+                        in.close();
+                    else
+                        Log.d(tag, "[readFile] method 'close' produced NullPointException at in.close() ");
 
-        String contents = new String(bytes);
-        return contents;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            Log.d(tag, "The data was returned from file ");
+            return new String(bytes);
+
+        } else {
+            Log.d(tag, "[readFile] method 'getContext' produced NullPointException at " +
+                    " getContext().getFilesDir().getAbsolutePath() ");
+            return "";
+        }
     }
+
 }

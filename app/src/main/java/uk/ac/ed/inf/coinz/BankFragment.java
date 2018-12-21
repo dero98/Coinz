@@ -7,26 +7,29 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.text.InputType;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 public class BankFragment extends Fragment {
-    private TextView textViewSHIL,textViewPENY,textViewQUID,textViewDOLR;
-    private final String preferencesFile = "MyPrefsFile";
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         return getLayoutInflater().inflate(R.layout.fragment_bank, container, false);
     }
+
     @Override
-    public void onViewCreated(View view, Bundle savedInstanceState) {
-        textViewSHIL= (TextView) view.findViewById(R.id.textViewSHIL);
-        textViewPENY= (TextView) view.findViewById(R.id.textViewPENY);
-        textViewQUID= (TextView) view.findViewById(R.id.textViewQUID);
-        textViewDOLR= (TextView) view.findViewById(R.id.textViewDOLR);
+    public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+        TextView textViewSHIL, textViewPENY, textViewQUID, textViewDOLR;
+        final String preferencesFile = "MyPrefsFile";
+        String tag = "BankFragment";
+        textViewSHIL = view.findViewById(R.id.textViewSHIL);
+        textViewPENY = view.findViewById(R.id.textViewPENY);
+        textViewQUID = view.findViewById(R.id.textViewQUID);
+        textViewDOLR = view.findViewById(R.id.textViewDOLR);
 
         textViewDOLR.setEnabled(false);
         textViewDOLR.setInputType(InputType.TYPE_NULL);
@@ -39,20 +42,30 @@ public class BankFragment extends Fragment {
 
         textViewPENY.setEnabled(false);
         textViewPENY.setInputType(InputType.TYPE_NULL);
+        if (getContext() != null) {
 
-        SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
-                Context.MODE_PRIVATE);
-        String valDOLR= settings.getString("DOLR", "");
-        textViewDOLR.setText("DOLR value is: "+ valDOLR);
-        String valSHIL =settings.getString("SHIL", "");
-        textViewSHIL.setText("SHIL value is: "+valSHIL);
+            SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
+                    Context.MODE_PRIVATE);
+            String valDOLR = settings.getString("DOLR", "");
+            String textDOLR = getString(R.string.dolrVal) + valDOLR;
+            textViewDOLR.setText(textDOLR);
 
-        String valQUID =settings.getString("QUID", "");
-        textViewQUID.setText("QUID value is: "+valQUID);
+            String valSHIL = settings.getString("SHIL", "");
+            String textSHIL = getString(R.string.shilVal) + valSHIL;
+            textViewSHIL.setText(textSHIL);
 
-        String valPENY =settings.getString("PENY", "");
-        textViewPENY.setText("PENY value is: "+valPENY);
+            String valQUID = settings.getString("QUID", "");
+            String textQUID = getString(R.string.quidVal) + valQUID;
+            textViewQUID.setText(textQUID);
 
+            String valPENY = settings.getString("PENY", "");
+            String textPENY = getString(R.string.quidVal) + valPENY;
+            textViewPENY.setText(textPENY);
+        } else {
+            Log.d(tag, "[onViewCreated] method 'getContext'produced " +
+                    "NullPointException at getContext()." +
+                    "getSharedPreferences(preferencesFile, Context.MODE_PRIVATE)");
+        }
     }
 }
 

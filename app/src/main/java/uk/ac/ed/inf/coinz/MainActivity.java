@@ -12,47 +12,41 @@ import android.util.Log;
 import android.view.MenuItem;
 
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.FirebaseFirestoreSettings;
 
-public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener{
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
     private DrawerLayout drawer;
     private final String tag = "MainActivity";
-    public  final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar=findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
-                .setTimestampsInSnapshotsEnabled(true)
-                .build();
-        db.setFirestoreSettings(settings);
-
-        drawer=findViewById(R.id.drawer_layout);
-        NavigationView navigationView= findViewById(R.id.nav_view);
+        drawer = findViewById(R.id.drawer_layout);
+        NavigationView navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
-        ActionBarDrawerToggle toggle= new ActionBarDrawerToggle(this,drawer,toolbar,
-                R.string.navigation_drawer_open,R.string.navigation_drawer_close);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer, toolbar,
+                R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawer.addDrawerListener(toggle);
         toggle.syncState();
-        if(savedInstanceState==null){
+        if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                     new MapFragment()).commit();
-            Log.d(tag,"MapFragment is launched");
+            Log.d(tag, "MapFragment is launched");
             navigationView.setCheckedItem(R.id.nav_map);
-    }
+        }
     }
 
     @Override
     public void onBackPressed() {
-        if(drawer.isDrawerOpen(GravityCompat.START)){
+        if (drawer.isDrawerOpen(GravityCompat.START)) {
             drawer.closeDrawer(GravityCompat.START);
-        }else{
+        } else {
             super.onBackPressed();
         }
         super.onBackPressed();
@@ -60,24 +54,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
-        switch(menuItem.getItemId()){
+        switch (menuItem.getItemId()) {
             case R.id.nav_bank:
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new BankFragment()).commit();
-                Log.d(tag,"BankFragment is launched");
+                Log.d(tag, "BankFragment is launched");
 
                 break;
             case R.id.nav_settings:
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new SettingsFragment()).commit();
-                Log.d(tag,"SettingsFragment is launched");
+                Log.d(tag, "SettingsFragment is launched");
 
                 break;
 
             case R.id.nav_map:
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new MapFragment()).commit();
-                Log.d(tag,"MapFragment is launched");
+                Log.d(tag, "MapFragment is launched");
 
                 break;
 
@@ -85,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new WalletFragment()).commit();
-                Log.d(tag,"WalletFragment is launched");
+                Log.d(tag, "WalletFragment is launched");
 
                 break;
 
@@ -93,7 +87,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             case R.id.nav_message:
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
                         new MessageFragment()).commit();
-                Log.d(tag,"MessageFragment is launched");
+                Log.d(tag, "MessageFragment is launched");
 
                 break;
 
@@ -107,6 +101,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public void onStart() {
         super.onStart();
     }
+
     @Override
     public void onStop() {
         super.onStop();

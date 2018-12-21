@@ -3,20 +3,26 @@ package uk.ac.ed.inf.coinz;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Bundle;
+import android.support.annotation.ColorInt;
+import android.support.annotation.DrawableRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.res.ResourcesCompat;
+import android.support.v4.graphics.drawable.DrawableCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.gson.JsonObject;
@@ -31,6 +37,7 @@ import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.annotations.Icon;
+import com.mapbox.mapboxsdk.annotations.IconFactory;
 import com.mapbox.mapboxsdk.annotations.Marker;
 import com.mapbox.mapboxsdk.annotations.MarkerOptions;
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
@@ -71,7 +78,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Locatio
     private FloatingActionButton buttonCollect;
     private final String email = new CurrentUser().getEmail();
     public FirebaseFirestore db;
-private HashMap<Long, String> markersIDs = new HashMap<>();
+    private Boolean newDevice;
+    private HashMap<Long, String> markersIDs = new HashMap<>();
 
 
     @Nullable
@@ -84,7 +92,7 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        db = new MainActivity().db;
+        db =FirebaseFirestore.getInstance();
         Mapbox.getInstance(requireActivity(), getString(R.string.access_token));
         mapView = view.findViewById(R.id.mapboxMapView);
         buttonCollect = view.findViewById(R.id.buttonCollect);
@@ -104,59 +112,52 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
             map.getUiSettings().setZoomControlsEnabled(true);
 // Make location information available
             enableLocation();
-        }
-        downloadJSON();
-        markerMapListener();
 
-    }
-    public void downloadJSON(){
-        if (downloadDate.equals(localdate())) {
+
             DownloadFromFireStore dowFs = new DownloadFromFireStore(getContext());
             dowFs.listenerQ = this;
             dowFs.doInBackgroundQueryLastUpload(db, localdate());
 
-        } else {
-            DownloadFileTask dowJ = new DownloadFileTask(this);
-            dowJ.listener = this;
-            dowJ.execute("http://homepages.inf.ed.ac.uk/stg/coinz/" + localdate() + "/coinzmap.geojson");
 
         }
+        markerMapListener();
+
     }
+
 
     public void markerMapListener() {
-        map.setOnMarkerClickListener((@NonNull Marker marker)->{
-                if(downloadDate.equals(localdate())) {
-                    LatLng originLatLng = new LatLng(originLocation.getLatitude(), originLocation.getLongitude());
-                    double distance = marker.getPosition().distanceTo(originLatLng);
-                    if (distance <= 150) {
-                        buttonCollect.setVisibility(View.VISIBLE);
-                        buttonCollect.setOnClickListener(
-                                new View.OnClickListener() {
-                                    public void onClick(View view) {
-                                        removeMarker(marker);
-                                    }
-                                });
-                        return false;
-                    } else {
-                        buttonCollect.setVisibility(View.GONE);
-                        return false;
-                    }
+        map.setOnMarkerClickListener((@NonNull Marker marker) -> {
 
-                }else{
-                    startActivity(new Intent(getActivity(), MainActivity.class));
-                    requireActivity().finish();
+                if (downloadDate.equals(localdate())&& originLocation!=null) {
+                LatLng originLatLng = new LatLng(originLocation.getLatitude(), originLocation.getLongitude());
+                double distance = marker.getPosition().distanceTo(originLatLng);
+                if (distance <= 25) {
+                    buttonCollect.setVisibility(View.VISIBLE);
+                    buttonCollect.setOnClickListener((View view) ->
+                            removeMarker(marker)
+                    );
+                    return false;
+                } else {
+                    buttonCollect.setVisibility(View.GONE);
+                    return false;
                 }
-                return false;
+
+            } else {
+                startActivity(new Intent(getActivity(), MainActivity.class));
+                requireActivity().finish();
+            }
+            return false;
         });
-        map.addOnMapClickListener((@NonNull LatLng point)->{
-                if(downloadDate.equals(localdate())){
+        map.addOnMapClickListener((@NonNull LatLng point) -> {
+            if (downloadDate.equals(localdate())) {
                 buttonCollect.setVisibility(View.GONE);
-                }else{
-                    startActivity(new Intent(getActivity(), MainActivity.class));
-                    requireActivity().finish();
-                }
+            } else {
+                startActivity(new Intent(getActivity(), MainActivity.class));
+                requireActivity().finish();
+            }
         });
     }
+
 
 
     public void removeMarker(Marker marker) {
@@ -177,19 +178,14 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
         db.collection("user:" + email)
                 .document("Coinz")
                 .collection("Wallet")
-                .document(IDofMarker).set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
-            @Override
-            public void onSuccess(Void avoid) {
+                .document(IDofMarker).set(user).addOnSuccessListener((Void avoid) -> {
 
-                Log.d(tag, "Coins is added to Walle");
-                Log.d(tag, "Id is" + IDofMarker);
-            }
-        }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                Log.d(tag, "Error adding document", e);
-            }
-        });
+            Log.d(tag, "Coins is added to Wallet");
+            Log.d(tag, "Id is" + IDofMarker);
+
+        }).addOnFailureListener(e ->
+                Log.d(tag, "Error adding document", e)
+        );
     }
 
     @Override
@@ -198,15 +194,15 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
         if (!downloadDate.equals(localdate())) {
             try {
                 JSONObject json = new JSONObject(result);
-                String shil = json.getJSONObject("rates").getString("DOLR");
+                String shil = json.getJSONObject("rates").getString("SHIL");
                 String dolr = json.getJSONObject("rates").getString("DOLR");
                 String quid = json.getJSONObject("rates").getString("QUID");
                 String peny = json.getJSONObject("rates").getString("PENY");
                 downloadDate = localdate();
-                if(getContext()!=null){
+                if (getContext() != null) {
 
-                SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
-                        Context.MODE_PRIVATE);
+                    SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
+                            Context.MODE_PRIVATE);
                     SharedPreferences.Editor editor = settings.edit();
                     editor.putString("lastDownloadDate", downloadDate);
                     editor.putString("SHIL", shil);
@@ -214,9 +210,13 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
                     editor.putString("QUID", quid);
                     editor.putString("PENY", peny);
                     editor.apply();
-                }else{
-                    Log.d(tag, "NullPointException at " +
-                            "getContext() in processResult(String result)");
+                    Log.d(tag, "lastDowloadDate was changed");
+                    Log.d(tag, "Currencies were changed");
+
+                } else {
+                    Log.d(tag, "[processResult] method 'getContext'produced " +
+                            "NullPointException at getContext()." +
+                            "getSharedPreferences(preferencesFile, Context.MODE_PRIVATE)");
                 }
 
 //
@@ -224,78 +224,136 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
                 e.printStackTrace();
             }
         }
-        FeatureCollection featuresColl = (FeatureCollection.fromJson(result));
-        if(featuresColl.features()!=null) {
-            for (Feature feature : featuresColl.features()) {
-                Point p = (Point) feature.geometry();
-                JsonObject jsProperties= feature.properties();
-                if(jsProperties!=null && p!=null){
-                String id = jsProperties.get("id").getAsString();
-                String value = jsProperties.get("value").getAsString();
-                String currency = jsProperties.get("currency").getAsString();
-                String marker_colorHex = jsProperties.get("marker-color").getAsString();
-                int marker_colorDec = Integer.parseInt(marker_colorHex.substring(1), 16);
-                Icon i = IconDraw.drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_colorHex));
-                String market_symbol = jsProperties.get("marker-symbol").getAsString();
-                Marker mp = map.addMarker(new MarkerOptions().title(currency)
-                        .snippet(value).icon(i)
-                        .position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
+        if (!newDevice) {
+            FeatureCollection featuresColl = FeatureCollection.fromJson(result);
+            List<Feature> allFeatures = featuresColl.features();
+            if (allFeatures != null) {
+                for (Feature feature : allFeatures) {
+                    Point p = (Point) feature.geometry();
+                    JsonObject jsProperties = feature.properties();
+                    if (jsProperties != null && p != null) {
+                        String id = jsProperties.get("id").getAsString();
+                        String value = jsProperties.get("value").getAsString();
+                        String currency = jsProperties.get("currency").getAsString();
+                        String marker_colorHex = jsProperties.get("marker-color").getAsString();
+                        Icon i = drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_colorHex));
+                        Marker mp = map.addMarker(new MarkerOptions().title(currency)
+                                .snippet(value).icon(i)
+                                .position(new LatLng(p.coordinates().get(1), p.coordinates().get(0))));
+                        markersIDs.put(mp.getId(), id);
+                    }
+                }
+            } else {
+                Log.d(tag, "[processResult] method 'features' produced " +
+                        "NullPointException at featuresColl.features()");
 
-
-                markersIDs.put(mp.getId(), id);
-            }
             }
         }
 
     }
 
+
+    public  Icon drawableToIcon(@NonNull Context context, @DrawableRes int id, @ColorInt int colorRes) {
+        Drawable vectorDrawable = ResourcesCompat.getDrawable(context.getResources(), id, context.getTheme());
+        if(vectorDrawable!=null){
+            Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(),
+                    vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            vectorDrawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+            DrawableCompat.setTint(vectorDrawable, colorRes);
+            vectorDrawable.draw(canvas);
+            return IconFactory.getInstance(context).fromBitmap(bitmap);
+        }else{
+            Log.d(tag, "[drawableToIcon] method 'vectorDrawable' produced " +
+                    "NullPointException at vectorDrawable.getIntrinsicWidth()");
+            return null;
+        }
+    }
+
+
+
+
     @Override
     public void processResultFromFireStore(List<DocumentSnapshot> list, boolean notnull) {
         if (notnull && getContext() != null) {
             for (DocumentSnapshot d : list) {
-                String id = d.get("id").toString();
-                String value = d.get("value").toString();
-                String currency = d.get("currency").toString();
-                String marker_color = d.get("marker-color").toString();
-                String market_symbol = d.get("marker-symbol").toString();
-                double lat = Double.parseDouble(d.get("lat").toString());
-                double lng = Double.parseDouble(d.get("lng").toString());
-                Icon i = IconDraw.drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_color));
-                Marker mp = map.addMarker(new MarkerOptions().title(currency)
-                        .snippet(value).icon(i)
-                        .position(new LatLng(lat, lng)));
-                markersIDs.put(mp.getId(), id);
-            }
+                Object idObj = d.get("id");
+                Object valueObj = d.get("value");
+                Object currencyObj = d.get("currency");
+                Object marker_colorObj = d.get("marker-color");
+                Object latObj = d.get("lat");
+                Object lngObj = d.get("lng");
+                if (idObj != null && valueObj != null && currencyObj != null &&
+                        marker_colorObj != null && latObj != null && lngObj != null) {
 
+                    String id = idObj.toString();
+                    String value = valueObj.toString();
+                    String currency = currencyObj.toString();
+                    String marker_color = marker_colorObj.toString();
+                    double lat = Double.parseDouble(latObj.toString());
+                    double lng = Double.parseDouble(lngObj.toString());
+                    Icon i = drawableToIcon(getContext(), R.drawable.ic_place, Color.parseColor(marker_color));
+                    Marker mp = map.addMarker(new MarkerOptions().title(currency)
+                            .snippet(value).icon(i)
+                            .position(new LatLng(lat, lng)));
+                    markersIDs.put(mp.getId(), id);
+                } else {
+                    Log.d(tag, "[processResultFromFireStore] method " +
+                            "'get' produced NullPointException at d.get()");
+
+                }
+            }
         }
     }
 
     @Override
     public void processQueryFromFireStore(List<DocumentSnapshot> list, boolean wasToDate) {
         if (wasToDate) {
-            DownloadFromFireStore dowFs = new DownloadFromFireStore(null);
-            dowFs.listener = this;
-            dowFs.doInBackground(db, "NotCollected");
+            if (downloadDate.equals(localdate())) {
+                newDevice = false;
+                DownloadFromFireStore dowFs = new DownloadFromFireStore(null);
+                dowFs.listener = this;
+                dowFs.doInBackground(db, "NotCollected");
+            } else {
+                newDevice = true;
+                DownloadFileTask dowJ = new DownloadFileTask(this, true);
+                dowJ.listener = this;
+                dowJ.execute("http://homepages.inf.ed.ac.uk/stg/coinz/" + localdate() + "/coinzmap.geojson");
+                DownloadFromFireStore dowFs = new DownloadFromFireStore(null);
+                dowFs.listener = this;
+                dowFs.doInBackground(db, "NotCollected");
+            }
+
+
         } else {
-            processResult(readFile());
+            if (downloadDate.equals(localdate())) {
+                newDevice = false;
+               new DownloadFileTask(null, false)
+                .saveToFirestore(readFile());
+                processResult(readFile());
+            } else {
+                newDevice = false;
+                DownloadFileTask dowJ = new DownloadFileTask(this, false);
+                dowJ.listener = this;
+                dowJ.execute("http://homepages.inf.ed.ac.uk/stg/coinz/" + localdate() + "/coinzmap.geojson");
+            }
         }
     }
 
 
     private void enableLocation() {
-        try{
-        if (PermissionsManager.areLocationPermissionsGranted(requireActivity())) {
-            Log.d(tag, "Permissions are granted");
-            initializeLocationEngine();
-            initializeLocationLayer();
-        }
-        else {
-            Log.d(tag, "Permissions are not granted");
-            permissionsManager = new PermissionsManager(this);
-            permissionsManager.requestLocationPermissions(getActivity());
-        }
+        try {
+            if (PermissionsManager.areLocationPermissionsGranted(requireActivity())) {
+                Log.d(tag, "Permissions are granted");
+                initializeLocationEngine();
+                initializeLocationLayer();
+            } else {
+                Log.d(tag, "Permissions are not granted");
+                permissionsManager = new PermissionsManager(this);
+                permissionsManager.requestLocationPermissions(getActivity());
+            }
 
-        }catch (NullPointerException e){
+        } catch (NullPointerException e) {
             e.printStackTrace();
 
         }
@@ -364,6 +422,8 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
     public void onExplanationNeeded(List<String> permissionsToExplain) {
         Log.d(tag, "Permissions: " + permissionsToExplain.toString());
 // Present toast or dialog.
+        Toast.makeText(getContext(), "In order to use this app the " +
+                "Location Servicies must be enabled ", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -372,12 +432,17 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
         if (granted) {
             enableLocation();
         } else {
-// Open a dialogue with the user
+            Toast.makeText(getContext(), "Please make sure that the " +
+                            "Location Services are enabled for this app ",
+                    Toast.LENGTH_SHORT).show();
+            Log.d(tag, "[onPermissionResult] is not granted");
+
         }
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
         permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
@@ -394,10 +459,14 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
 
         }
         mapView.onStart();
-        SharedPreferences settings = getContext().getSharedPreferences(preferencesFile, Context.MODE_PRIVATE);
+        if (getContext() != null) {
+            SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
+                    Context.MODE_PRIVATE);
 // use ”” as the default value (this might be the first time the app is run)
-        downloadDate = settings.getString("lastDownloadDate", "");
-        Log.d(tag, "[onStart] Recalled lastDownloadDate is ’" + downloadDate + "’");
+            downloadDate = settings.getString("lastDownloadDate", "");
+            Log.d(tag, "[onStart] Recalled lastDownloadDate is ’" + downloadDate + "’");
+        } else Log.d(tag, "[onStart] method 'getContext' NullPointException at" +
+                " getContext().getSharedPreferences(preferencesFile, Context.MODE_PRIVATE)");
     }
 
     @Override
@@ -426,15 +495,16 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
 
         Log.d(tag, "[onStop] Storing lastDownloadDate of " + downloadDate);
 // All objects are from android.context.Context
-
-        SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
-                Context.MODE_PRIVATE);
+        if (getContext() != null) {
+            SharedPreferences settings = getContext().getSharedPreferences(preferencesFile,
+                    Context.MODE_PRIVATE);
 // We need an Editor object to make preference changes.
-        SharedPreferences.Editor editor = settings.edit();
-        editor.putString("lastDownloadDate", downloadDate);
+            SharedPreferences.Editor editor = settings.edit();
+            editor.putString("lastDownloadDate", downloadDate);
 // Apply the edits!
-        editor.apply();
-
+            editor.apply();
+        } else Log.d(tag, "[onStop] produces NullPointException at " +
+                "getContext().getSharedPreferences(preferencesFile,Context.MODE_PRIVATE)");
 
     }
 
@@ -460,38 +530,47 @@ private HashMap<Long, String> markersIDs = new HashMap<>();
     }
 
     public String readFile() {
-      if(getContext()!=null){
-        String path = getContext().getFilesDir().getAbsolutePath();
-        File file = new File(path + "/coinzmap.geojson.txt");
-        int length = (int) file.length();
+        if (getContext() != null) {
+            String path = getContext().getFilesDir().getAbsolutePath();
+            File file = new File(path + "/coinzmap_geojson.txt");
+            int length = (int) file.length();
 
-        byte[] bytes = new byte[length];
+            byte[] bytes = new byte[length];
 
-        FileInputStream in = null;
-        try {
-            in = new FileInputStream(file);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        try {
+            FileInputStream in = null;
             try {
-                in.read(bytes);
-            } catch (IOException e) {
+                in = new FileInputStream(file);
+            } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
-        } finally {
             try {
-                in.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+                try {
+                    if (in != null) {
+                        in.read(bytes);
+                    } else Log.d(tag, "[readFile] method 'read' produced NullPointException " +
+                            "at in.read(bytes)");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } finally {
+                try {
+                    if (in != null)
+                        in.close();
+                    else
+                        Log.d(tag, "[readFile] method 'close' produced NullPointException at in.close() ");
 
-        return new String(bytes);
-    }else{
-          Log.d(tag,"NullPointException at getContext() in readFile()");
-      }
-    return "";
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            Log.d(tag, "The data was returned from file ");
+            return new String(bytes);
+
+        } else {
+            Log.d(tag, "[readFile] method 'getContext' produced NullPointException at " +
+                    " getContext().getFilesDir().getAbsolutePath() ");
+            return "";
+        }
     }
 
     public String localdate() {
